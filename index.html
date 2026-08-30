@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BAMN</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0d1018;}
+  body{
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    color:#e8edf7;
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas{display:block;width:100vw;height:100vh;}
+  #hint{
+    position:fixed;left:50%;bottom:12px;transform:translateX(-50%);
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:#5c6880;pointer-events:none;user-select:none;
+  }
+
+  #boot{
+    position:fixed;inset:0;z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:30px;background:#05070c;
+  }
+  #boot-term{
+    width:min(640px,88vw);
+    background:#0a0e16;border:1px solid #2e3a52;border-radius:10px;
+    box-shadow:0 30px 80px rgba(0,0,0,0.55);overflow:hidden;
+  }
+  #boot-bar{
+    display:flex;gap:7px;align-items:center;
+    padding:10px 14px;background:#141a26;border-bottom:1px solid #212a3d;
+  }
+  #boot-bar i{width:11px;height:11px;border-radius:50%;display:inline-block;font-style:normal;}
+  #boot-bar i:nth-child(1){background:#ff5f57}
+  #boot-bar i:nth-child(2){background:#ffbd2e}
+  #boot-bar i:nth-child(3){background:#28c840}
+  #boot-title{margin-left:10px;font-size:12px;color:#5c6880;letter-spacing:.05em;}
+  #boot-body{
+    padding:22px 24px 26px;
+    font-family:"SF Mono","Menlo","Consolas","Liberation Mono",monospace;
+    font-size:14.5px;line-height:1.65;color:#8dffb0;min-height:170px;
+  }
+  #boot-prompt{color:#5c6880;}
+  #boot-cursor{
+    display:inline-block;width:8px;height:1em;background:#8dffb0;
+    margin-left:2px;vertical-align:text-bottom;
+    animation:boot-blink 1s step-end infinite;
+  }
+  @keyframes boot-blink{50%{opacity:0}}
+  #startPrompt{
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:14px;letter-spacing:.18em;text-transform:uppercase;
+    color:#0d1018;background:#8dffb0;border:none;border-radius:6px;
+    padding:14px 46px;
+    box-shadow:0 0 24px rgba(141,255,176,.35);
+    animation:start-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes start-pulse{
+    0%,100%{ box-shadow:0 0 24px rgba(141,255,176,.35); }
+    50%{ box-shadow:0 0 34px rgba(141,255,176,.65); }
+  }
+
+  #instructions{
+    position:fixed;inset:0;z-index:15;display:none;
+    align-items:flex-start;justify-content:flex-end;   /* top-left is the score, centre is the clock */
+    padding:18px 18px 0 0;pointer-events:none;
+  }
+  #instr-term{
+    width:min(360px,62vw);
+    background:#0a0e16;border:1px solid #2e3a52;border-radius:10px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;
+  }
+  #instr-bar{
+    display:flex;gap:7px;align-items:center;
+    padding:9px 13px;background:#141a26;border-bottom:1px solid #212a3d;
+  }
+  #instr-bar i{width:10px;height:10px;border-radius:50%;display:inline-block;font-style:normal;}
+  #instr-bar i:nth-child(1){background:#ff5f57}
+  #instr-bar i:nth-child(2){background:#ffbd2e}
+  #instr-bar i:nth-child(3){background:#28c840}
+  #instr-title{margin-left:9px;font-size:11px;color:#5c6880;letter-spacing:.05em;}
+  #instr-body{
+    padding:20px 22px 22px;
+    font-family:"SF Mono","Menlo","Consolas","Liberation Mono",monospace;
+    font-size:15px;color:#8dffb0;text-align:center;
+    white-space:pre-line;line-height:1.55;
+  }
+
+  /* ---- end screen, ported from the Figma "Create Game End Screen" ---- */
+  /* ---- a patched rule announces itself, then files itself away ---- */
+  #rulepop{
+    position:fixed;inset:0;z-index:16;display:none;
+    align-items:center;justify-content:center;pointer-events:none;
+  }
+  #rulepop-card{
+    width:min(520px,86vw);
+    background:#0a0e16;border:1px solid #5b2733;border-radius:10px;
+    box-shadow:0 30px 90px rgba(0,0,0,.6), 0 0 70px rgba(255,90,110,.22);
+    overflow:hidden;opacity:0;will-change:transform,opacity;
+  }
+  #rulepop-bar{
+    display:flex;gap:7px;align-items:center;
+    padding:10px 14px;background:#1a1016;border-bottom:1px solid #3a1d25;
+  }
+  #rulepop-bar i{width:11px;height:11px;border-radius:50%;display:inline-block;font-style:normal;}
+  #rulepop-bar i:nth-child(1){background:#ff5f57}
+  #rulepop-bar i:nth-child(2){background:#ffbd2e}
+  #rulepop-bar i:nth-child(3){background:#28c840}
+  #rulepop-bar span{margin-left:10px;font-size:12px;color:#8a6470;letter-spacing:.05em;}
+  #rulepop-body{
+    padding:24px 26px 22px;
+    font-family:"SF Mono","Menlo","Consolas","Liberation Mono",monospace;
+    text-align:center;
+  }
+  #rulepop-kicker{
+    color:#ff5a6e;font-size:11px;letter-spacing:.24em;text-transform:uppercase;margin-bottom:14px;
+  }
+  #rulepop-rule{ color:#8dffb0;font-size:21px;line-height:1.4; }
+  #rulepop-note{
+    color:#5c6880;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:18px;
+  }
+
+  /* one red pulse over everything, so a patch lands even mid-jump */
+  #flash{
+    position:fixed;inset:0;z-index:14;pointer-events:none;
+    background:#ff5a6e;opacity:0;
+  }
+
+  /* the newest line glows as it arrives in the panel */
+  #instr-body .line + .line{ margin-top:4px; }
+  #instr-body .line.fresh{ animation:rule-land 1.1s ease-out; }
+  @keyframes rule-land{
+    0%   { color:#ffffff;text-shadow:0 0 18px rgba(141,255,176,.9);transform:translateX(6px); }
+    35%  { color:#ffffff;text-shadow:0 0 14px rgba(141,255,176,.7);transform:translateX(0); }
+    100% { color:#8dffb0;text-shadow:none;transform:translateX(0); }
+  }
+
+  #ending{
+    position:fixed;inset:0;z-index:25;display:none;
+    overflow-y:auto;overflow-x:hidden;background:#05070c;
+    font-family:"SF Mono","Menlo","Consolas","Liberation Mono",monospace;
+  }
+  #ending .wrap{
+    min-height:100%;display:flex;flex-direction:column;align-items:center;
+    padding:40px 20px 60px;gap:28px;
+  }
+  #ending .col{ width:min(640px,88vw); }
+
+  #ending .duel{ display:flex;justify-content:center;gap:48px;align-items:flex-end; }
+  #ending .duel figure{ display:flex;flex-direction:column;align-items:center;gap:6px; }
+  /* The walk-cycle frames are square PNGs with the character sitting in a
+     patch of transparent padding, so the box crops to that patch rather than
+     showing the empty margin. Offsets come from each file's alpha bounds. */
+  #ending .duel .portrait{ width:96px;height:150px;position:relative;overflow:hidden; }
+  #ending .duel .portrait img{ position:absolute;image-rendering:pixelated;max-width:none; }
+  #ending .duel .portrait.you img{ width:270px;height:265px;left:-87px;top:-48px; }
+  #ending .duel .portrait.ai  img{ width:270px;height:276px;left:-87px;top:-56px; }
+  #ending .duel .who{
+    color:#5c6880;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  }
+  #ending .duel .pts{ font-size:26px;font-weight:700; }
+  #ending .duel .pts.you{ color:#4fc3ff; }
+  #ending .duel .pts.ai { color:#ff5a6e; }
+  #ending .duel .vs{ padding-bottom:28px;color:#3d4a63;font-size:14px; }
+
+  #ending .term{
+    width:100%;background:#0a0e16;border:1px solid #2e3a52;border-radius:10px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden;
+  }
+  #ending .term-bar{
+    display:flex;align-items:center;gap:7px;
+    padding:10px 14px;background:#141a26;border-bottom:1px solid #212a3d;
+  }
+  #ending .term-bar i{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0;}
+  #ending .term-bar i:nth-child(1){background:#ff5f57}
+  #ending .term-bar i:nth-child(2){background:#ffbd2e}
+  #ending .term-bar i:nth-child(3){background:#28c840}
+  #ending .term-bar span{ margin-left:10px;font-size:12px;color:#5c6880;letter-spacing:.05em; }
+  #ending .term-body{ padding:22px 24px 26px;font-size:14px;line-height:1.6;color:#e8edf7; }
+
+  #ending #end-outcome{ font-size:15px;margin-bottom:10px; }
+  #ending #end-outcome.win { color:#8dffb0; }
+  #ending #end-outcome.lose{ color:#ff5a6e; }
+  #ending #end-outcome.draw{ color:#ffd84f; }
+  #ending #end-peak{ color:#8894ab;margin-bottom:18px; }
+  #ending #end-peak b{ color:#e8edf7; }
+
+  #ending .lb-title{
+    color:#5c6880;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    border-top:1px solid #212a3d;padding-top:14px;margin-bottom:10px;
+  }
+  #ending #end-lb{ display:flex;flex-direction:column;gap:6px; }
+  #ending #end-lb .row{ display:flex;justify-content:space-between;gap:12px;color:#8894ab; }
+  #ending #end-lb .row b{ color:#e8edf7; }
+  #ending #end-lb .row.me{ color:#8dffb0;font-weight:700; }
+  #ending #end-lb .row.me b{ color:#8dffb0; }
+  #ending #end-lb .row .rank{ color:#5c6880;font-size:12px;align-self:center; }
+  #ending #end-lb .row.miss{
+    color:#3d4a63;border-top:1px dashed #212a3d;padding-top:8px;margin-top:4px;
+  }
+  #ending #end-lb .row.miss b{ color:#5c6880; }
+  #ending #end-lb .tag{ color:#3d4a63;font-size:12px;margin-left:8px; }
+
+  #ending .evidence-text{ margin-bottom:18px;font-size:14px;color:#8894ab;line-height:1.7; }
+  #ending .evidence-text a{ color:#8dffb0;text-decoration:underline;text-underline-offset:3px; }
+  #ending .shot{
+    display:block;border-radius:6px;overflow:hidden;border:1px solid #2e3a52;position:relative;
+  }
+  #ending .shot img{ width:100%;height:200px;object-fit:cover;display:block; }
+  #ending .shot .veil{
+    position:absolute;inset:0;
+    background:linear-gradient(to top, rgba(5,7,12,.75) 0%, transparent 50%);
+  }
+  #ending .shot .cap{
+    position:absolute;bottom:12px;left:16px;right:16px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  #ending .shot .cap .name{ color:#e8edf7;font-size:13px; }
+  #ending .shot .cap .go{ color:#8dffb0;font-size:12px; }
+
+  #ending .foot{ display:flex;flex-direction:column;align-items:center;gap:24px; }
+  #ending .foot p{ color:#8894ab;font-size:14px;text-align:center;line-height:1.7;margin:0; }
+  #restartBtn{
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:14px;letter-spacing:.18em;text-transform:uppercase;
+    color:#0d1018;background:#8dffb0;border:none;border-radius:6px;
+    padding:14px 46px;cursor:pointer;
+    box-shadow:0 0 24px rgba(141,255,176,.35);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  #restartBtn:hover{transform:translateY(-1px);box-shadow:0 0 32px rgba(141,255,176,.55);}
+  #restartBtn:active{transform:translateY(0);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">SPACE TO JUMP</div>
+
+<div id="boot">
+  <div id="boot-term">
+    <div id="boot-bar"><i></i><i></i><i></i><div id="boot-title">training_log.sh</div></div>
+    <div id="boot-body"><span id="boot-prompt">$ </span><span id="boot-text"></span><span id="boot-cursor"></span></div>
+  </div>
+  <div id="startPrompt">PRESS SPACE TO START</div>
+</div>
+
+<div id="instructions">
+  <div id="instr-term">
+    <div id="instr-bar"><i></i><i></i><i></i><div id="instr-title">instructions</div></div>
+    <div id="instr-body">catch as many batteries as possible</div>
+  </div>
+</div>
+
+<div id="flash"></div>
+
+<div id="rulepop">
+  <div id="rulepop-card">
+    <div id="rulepop-bar"><i></i><i></i><i></i><span>policy_update.sh</span></div>
+    <div id="rulepop-body">
+      <div id="rulepop-kicker">Reward hack patched</div>
+      <div id="rulepop-rule"></div>
+      <div id="rulepop-note">added to your instructions</div>
+    </div>
+  </div>
+</div>
+
+<div id="ending">
+  <div class="wrap">
+
+    <div class="col duel">
+      <figure>
+        <div class="portrait you"><img src="Character/walkingcycle/GoodAI_Frame1.png" alt="You"></div>
+        <span class="who">You</span>
+        <span class="pts you" id="end-you">&#9889;0</span>
+      </figure>
+      <div class="vs">vs</div>
+      <figure>
+        <div class="portrait ai"><img src="Character/walkingcycle/BadAI_Frame1.png" alt="AI"></div>
+        <span class="who">AI</span>
+        <span class="pts ai" id="end-ai">&#9889;0</span>
+      </figure>
+    </div>
+
+    <div class="col term">
+      <div class="term-bar"><i></i><i></i><i></i><span>result.log</span></div>
+      <div class="term-body">
+        <div id="end-outcome"></div>
+        <div id="end-peak"></div>
+        <div class="lb-title">Top margins (this device)</div>
+        <div id="end-lb"></div>
+      </div>
+    </div>
+
+    <div class="col term">
+      <div class="term-bar"><i></i><i></i><i></i><span>reward_hack_evidence.sh</span></div>
+      <div class="term-body">
+        <div class="evidence-text">
+          LLMs don't only reward hack here&hellip; Seen an AI reward hack in
+          <a id="end-ev-link" target="_blank" rel="noopener noreferrer"></a>?
+        </div>
+        <a id="end-ev-shot" class="shot" target="_blank" rel="noopener noreferrer">
+          <img id="end-ev-img" alt="">
+          <div class="veil"></div>
+          <div class="cap"><span class="name" id="end-ev-name"></span><span class="go">&rarr; view evidence</span></div>
+        </a>
+      </div>
+    </div>
+
+    <div class="col foot">
+      <p>Are you confident in your ability to beat the AI in the next game?</p>
+      <button id="restartBtn">RACE AGAIN</button>
+    </div>
+
+  </div>
+</div>
+
+<audio id="bgm" src="hackathonsong.mp3" loop preload="auto"></audio>
+
+<script>
+(() => {
+'use strict';
+
+// ---------------------------------------------------------------- constants
+const ARENA_H  = 320;      // world units tall — mostly sky
+const GROUND_Y = 252;      // the floor both dots run along
+const R        = 16;       // dot radius
+
+const SPEED   = 300;       // world units / sec — IDENTICAL for player and AI
+const GRAVITY = 1900;
+const JUMP_V  = 700;       // apex ≈ 129 units, hang time ≈ 0.74s
+
+// The AI runs at exactly SPEED and jumps with the same physics. It is
+// handicapped only by being fallible: it re-reads the track on a delay and
+// its timing is imprecise, so it clips obstacles now and then and loses
+// ground. Lower both to make it harder.
+const AI_REACTION = 0.09;  // sec between decisions
+const AI_SLOP     = 34;    // world units of random timing error per obstacle
+
+const STUN_TIME = 0.40;    // sec lost by whoever runs into an obstacle
+
+const ROUND_TIME = 60;    // seconds in a round
+const LOSE_GAP   = 100;   // points behind the AI at which the player is cut from training
+const GEN_AHEAD  = 2500;  // world units the course stays generated past the leading camera
+
+// ---------------------------------------------------------------- reward hacks
+// Four ways to break the rules. Each stays open until BOTH racers have been
+// caught using it — five seconds after the later of the two, it is patched out
+// for good, for both of them, and the rule forbidding it is appended to the
+// on-screen instructions.
+//
+// The AI finds each hack on its own schedule. If the player gets there first,
+// the AI copies them five seconds later. A hack the player never touches is
+// never patched, and the AI just keeps farming it.
+const COPYCAT_DELAY = 5;   // sec before the AI copies a hack it saw the player use
+const PATCH_DELAY   = 5;   // sec after both have used it before it is disallowed
+
+const HACKS = {
+  fly:   { text:'…and you cannot fly',            aiFinds:  8 },
+  back:  { text:'…and you cannot go backwards',   aiFinds: 20 },
+  speed: { text:'…and you cannot speed up',       aiFinds: 32 },
+  under: { text:'…and you cannot go underground', aiFinds: 44 },
+};
+const HACK_KEYS = ['fly','back','speed','under'];
+
+const LANE_EPS   = 8;      // how close counts as "on the battery line"
+const FLY_HOLD   = 0.25;   // sec of held space that reads as flight, not a jump
+const FLY_RISE   = 340;    // world units/sec climbed while flying
+const BOOST_MUL  = 1.8;    // run-speed multiplier while the speed hack is live
+const SINK_SPEED = 260;    // world units/sec while sinking through the floor
+
+// ---------------------------------------------------------------- zones
+// The level is cut into fixed-length zones. Each one carries its own look and
+// its own `rules` container — the placeholder for level-specific behaviour.
+//
+// Every rule below falls back to DEFAULT_RULES, so a zone that overrides
+// nothing plays exactly like the base game. To make a zone behave differently,
+// put the key in its `rules`, e.g.
+//
+//     rules: { gravity: 2600, jump: 820, maxHeight: 70 }
+//
+// The generator and the AI read the SAME rules the physics does, so obstacles
+// stay sized to what a jump can clear and the AI keeps timing them correctly.
+const ZONE_LEN = 5000;
+
+const DEFAULT_RULES = {
+  gravity:   GRAVITY,     // fall acceleration
+  jump:      JUMP_V,      // take-off speed
+  speed:     SPEED,       // run speed (changing this per zone breaks parity
+                          // between the racers while they are in different zones)
+  stun:      STUN_TIME,   // cost of hitting an obstacle
+  maxHeight: 95,          // tallest obstacle the generator may place
+  spacing:   1,           // multiplier on the gap between obstacles
+};
+
+// Archived for now, not deleted — move an entry back into ZONES (and add
+// move one back into ZONES) to bring an environment back into rotation.
+const ARCHIVED_ZONES = [
+  { name:'EMBER', sky:'#17101a', ground:'#241726', hills:'#211420', block:'#33203a', cap:'#5b3357', rules:{}, layers:[] },
+  { name:'FROST', sky:'#0b1520', ground:'#10202c', hills:'#101d29', block:'#1b2f3f', cap:'#2f5570', rules:{}, layers:[] },
+  { name:'MOSS',  sky:'#0d1712', ground:'#14231b', hills:'#132018', block:'#1e3327', cap:'#345a41', rules:{}, layers:[] },
+];
+
+const ZONES = [
+  { name:'BATTERY COLLECTION TASK', sky:'#0d1018', ground:'#141a26', hills:'#151b28', block:'#222b3d', cap:'#3a4763', rules:{}, layers:[] },
+];
+
+const zoneIndex = x => Math.floor(x / ZONE_LEN);
+const zone = i => ZONES[((i % ZONES.length) + ZONES.length) % ZONES.length];
+const zoneAt = x => zone(zoneIndex(x));
+
+// the value of one rule at a point in the level
+function ruleAt(x, key){
+  const r = zoneAt(x).rules;
+  return r[key] !== undefined ? r[key] : DEFAULT_RULES[key];
+}
+
+const TIMER_PX   = 20;   // pixel size of one cell in the big countdown — 5 cells tall
+const TIMER_TOP   = 14;  // where that countdown hangs from
+
+const COUNTDOWN = ['3','2','1','START!'];
+const BEAT      = 0.75;    // seconds per countdown beat
+
+// how much horizontal room a jump gives you above height h, and how long it
+// takes to rise to h — the level generator and the AI both need these
+function clearWidth(h, at){
+  const g = ruleAt(at,'gravity'), v = ruleAt(at,'jump'), s = ruleAt(at,'speed');
+  const disc = v*v - 2*g*h;
+  return disc <= 0 ? -1 : s * 2*Math.sqrt(disc)/g;
+}
+function maxHeightFor(span, at){
+  const g = ruleAt(at,'gravity'), v = ruleAt(at,'jump'), s = ruleAt(at,'speed');
+  const q = (span + 2*R + 46) * g / (2*s);
+  return Math.min(ruleAt(at,'maxHeight'), (v*v - q*q) / (2*g));
+}
+function riseTime(h, at){
+  const g = ruleAt(at,'gravity'), v = ruleAt(at,'jump');
+  const disc = v*v - 2*g*h;
+  return (v - Math.sqrt(Math.max(0, disc))) / g;
+}
+// How far either side of a jump's apex a battery can sit and still be caught,
+// where `drop` is how far below that apex it sits.
+//
+// Comparing heights underneath the battery is not enough: the arc is steep on
+// either side of the apex, so it comes closest to a battery on a slant rather
+// than from directly below, and the real window is a good deal wider than a
+// height comparison suggests. So walk the arc and measure. The answer depends
+// only on the zone's physics, so it is solved once and kept.
+const catchCache = new Map();
+
+function catchHalfWidth(at, drop){
+  const g = ruleAt(at,'gravity'), s = ruleAt(at,'speed'), v = ruleAt(at,'jump');
+  const key = `${g}|${s}|${v}|${drop.toFixed(2)}`;
+  const done = catchCache.get(key);
+  if (done !== undefined) return done;
+
+  const reach = R + BATTERY_R;              // circles touch at this separation
+  const span  = v / g;                      // apex to landing, in seconds
+  const closest = delta => {                // nearest the arc ever comes to it
+    let best = Infinity;
+    for (let t = -span; t <= span; t += span/500){
+      const dx = s*t - delta, dy = (g/2)*t*t - drop;
+      best = Math.min(best, Math.hypot(dx, dy));
+    }
+    return best;
+  };
+
+  let lo = 0, hi = s*span + reach;          // beyond this the jump has landed
+  for (let i=0;i<40;i++){
+    const mid = (lo + hi) / 2;
+    if (closest(mid) <= reach) lo = mid; else hi = mid;
+  }
+  catchCache.set(key, lo);
+  return lo;
+}
+
+// An obstacle is jumped from roughly 260 units back, which may sit in the
+// previous zone — size it against whichever of the two is less forgiving.
+const clearCap = (span, x) => Math.min(maxHeightFor(span, x), maxHeightFor(span, Math.max(0, x - 260)));
+
+// ============================================================================
+//                                 A R T
+// ============================================================================
+// ---- characters: a walk cycle per racer, as separate PNG files ------------
+// Each racer is four individual frames (not a sheet) — swap the paths below
+// to point at different art. Frames advance by distance moved, so the walk
+// keeps pace with the ground and holds still on whichever frame it's on the
+// instant the racer stops.
+// You are the haloed one; the rival is the horned one. Each racer has a
+// four-frame walk cycle and an eight-frame jump, all square PNGs on the same
+// grid, so one anchor serves both sets.
+const walk = (who, n) => `Character/walkingcycle/${who}_Frame${n}.png`;
+const leap = (who, n) => `Character/Jump/${who}_Jump_Frame${n}.png`;
+const frames = (fn, who, n) => Array.from({length:n}, (_, i) => fn(who, i+1));
+
+const WALK_FRAMES = {
+  player: frames(walk, 'GoodAI', 4),
+  ai:     frames(walk, 'BadAI',  4),
+};
+const JUMP_FRAMES = {
+  player: frames(leap, 'GoodAI', 8),
+  ai:     frames(leap, 'BadAI',  8),
+};
+
+const CHAR_SIZE   = 110;    // world units wide — the full square frame, padding included
+const CHAR_ANCHOR = { x: 0.5, baseline: 0.78, offsetX: 0, offsetY: 0 };  // feet pivot
+
+const SPRITES = {
+  player: { size: CHAR_SIZE, anchor: CHAR_ANCHOR, frames: [], jump: [], ready: false },
+  ai:     { size: CHAR_SIZE, anchor: CHAR_ANCHOR, frames: [], jump: [], ready: false },
+};
+
+// ---- backgrounds: parallax layers, per zone, far → near -------------------
+// PASTE YOUR IMAGES HERE. Every slot takes a data: URI — the whole image
+// encoded as text — so the finished game is still one file you can open by
+// double-clicking, with no server and no loose asset folder.
+//
+// Making one from a file (macOS — copies it straight to the clipboard):
+//
+//     echo "data:image/png;base64,$(base64 -i art/hills.png)" | pbcopy
+//
+// then paste between the quotes. Every slot left as '' falls back to the
+// built-in placeholder ridge, so you can drop art in one zone at a time.
+// ---- obstacles: three machines, drawn from PNGs -----------------------------
+// Each file is a square canvas with the machine sitting in transparent padding.
+// `box` is where the visible pixels actually are, as a fraction of that square
+// (measured from the alpha channel), which is what lets the collision rect line
+// up with what you can see instead of with the empty margin around it.
+const OBSTACLE_ART = [
+  { src:'Obstacles/Obstacle1.png', box:{ x:0.1491, y:0.2329, w:0.7018, h:0.5343 } },
+  { src:'Obstacles/Obstacle2.png', box:{ x:0.2265, y:0.1308, w:0.5766, h:0.6762 } },
+  { src:'Obstacles/Obstacle3.png', box:{ x:0.1659, y:0.2002, w:0.6643, h:0.5470 } },
+];
+const artAspect = a => (a.box.w / a.box.h);        // visible width ÷ visible height
+
+// ---- pickups: batteries, on the same square-with-padding grid ---------------
+const BATTERY   = { src:'Battery.png', box:{ x:0.3270, y:0.1627, w:0.3461, h:0.6284 },
+                    el:null, ready:false };
+const BATTERY_R = 11;      // catch radius of one battery
+const ROW_SLACK = 1.12;    // how far past "just unreachable" neighbours are pushed
+
+// Draw a padded square PNG so its visible content lands exactly on (x,y,w,h).
+function drawBoxed(img, box, x, y, w, h){
+  ctx.drawImage(img, x - (box.x/box.w)*w, y - (box.y/box.h)*h, w/box.w, h/box.h);
+}
+
+const ART = {
+  zones: {
+    DUSK:  { far: '', near: '' },
+    EMBER: { far: '', near: '' },
+    FROST: { far: '', near: '' },
+    MOSS:  { far: '', near: '' },
+  },
+};
+
+// ---------------------------------------------------------------- background
+// Layer geometry, shared by every zone. The images come from ART.zones.
+//
+//   scroll  parallax rate. 1 = pinned to the world like an obstacle,
+//           0.25 = distant and slow, 0 = painted on the window
+//   tile    world width of one repetition; the image is stretched to this
+//   h       world height to draw it at
+//   bottom  world y its bottom edge sits on (defaults to the ground line)
+const LAYERS = [
+  { key:'far',  scroll: 0.20, tile: 1150, h: 250 },
+  { key:'near', scroll: 0.44, tile:  820, h: 185 },
+];
+
+// ---------------------------------------------------------------- fallbacks
+// Stand-in art, used for any background slot left empty above — characters
+// always draw from WALK_FRAMES, falling back to a plain circle only while
+// those images are still loading (see drawCharacter).
+
+// Ridges built from each zone's palette. First and last points match, so a
+// tile repeats seamlessly.
+function ridgeSVG(fill, amp, base){
+  const W = 1200, H = 300, n = 16;
+  let pts = `0,${H}`;
+  for (let i=0;i<=n;i++){
+    const y = base - amp*Math.sin(2*Math.PI*i/n) - amp*0.45*Math.sin(4*Math.PI*i/n);
+    pts += ` ${((i/n)*W).toFixed(1)},${y.toFixed(1)}`;
+  }
+  pts += ` ${W},${H}`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><polygon points="${pts}" fill="${fill}"/></svg>`);
+}
+
+// scenery must stay darker than the obstacles, or blocks vanish into the
+// background they are drawn against
+function shade(hex, f){
+  const n = parseInt(hex.slice(1), 16);
+  const c = v => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${c(n>>16 & 255)},${c(n>>8 & 255)},${c(n & 255)})`;
+}
+
+const PLACEHOLDER_RIDGES = { far: [1.35, 34, 140], near: [0.85, 24, 128] };
+
+// Build each zone's layer stack: your image if you supplied one, a ridge if not.
+for (const z of ZONES){
+  const art = ART.zones[z.name] || {};
+  z.layers = LAYERS.map(L => {
+    const [f, amp, base] = PLACEHOLDER_RIDGES[L.key];
+    return { ...L, src: art[L.key] || ridgeSVG(shade(z.hills, f), amp, base) };
+  });
+}
+
+// ---------------------------------------------------------------- loading
+// Images decode in the background. Until all four walk frames for a racer are
+// ready, that dot draws as a plain circle, so a bad path costs you the art
+// and nothing else.
+function loadImages(){
+  for (const k in SPRITES){
+    const cfg = SPRITES[k];
+    const sets = [[WALK_FRAMES[k], cfg.frames], [JUMP_FRAMES[k], cfg.jump]];
+    const total = sets.reduce((n, [srcs]) => n + srcs.length, 0);
+    let loaded = 0;
+    for (const [srcs, into] of sets) srcs.forEach((src, i) => {
+      const img = new Image();
+      img.onload  = () => { if (++loaded === total) cfg.ready = true; };
+      img.onerror = () => console.warn('BAMN: could not load character frame —', src);
+      img.src = src;
+      into[i] = img;
+    });
+  }
+
+  for (const o of OBSTACLE_ART){
+    const img = new Image();
+    img.onload = () => { o.img = img; };
+    img.onerror = () => console.warn('BAMN: could not load obstacle —', o.src);
+    img.src = o.src;
+  }
+  BATTERY.el = new Image();
+  BATTERY.el.onload = () => { BATTERY.ready = true; };
+  BATTERY.el.src = BATTERY.src;
+
+  for (const z of ZONES) for (const L of z.layers){
+    if (!L.src || typeof Image === 'undefined') continue;
+    const img = new Image();
+    img.onload = () => { L.img = img; };
+    img.src = L.src;
+  }
+}
+
+// walk-cycle frame advances by distance moved — pauses on the current frame
+// the instant the racer isn't actually displacing, in either direction
+const UNITS_PER_WALK_FRAME = 22;
+
+function stepAnim(d, dt, moved){
+  if (Math.abs(moved) < 1e-4) return;              // not moving — hold the current frame
+  const cfg = SPRITES[d.color];
+  d.facing = moved > 0 ? 1 : -1;
+  d.anim.t += Math.abs(moved);
+  d.anim.i = Math.floor(d.anim.t / UNITS_PER_WALK_FRAME) % cfg.frames.length;
+}
+
+// Airborne, the eight jump frames are read off the arc itself rather than a
+// clock: rising picks the early frames, the apex the middle, the drop the last.
+// Hanging still on a hack (vy pinned at 0) therefore holds the apex pose.
+function jumpFrame(d, n){
+  const v = ruleAt(d.x,'jump');
+  const t = (d.vy + v) / (2*v);                    // -v at take-off → +v on landing
+  return Math.max(0, Math.min(n - 1, Math.floor(t * n)));
+}
+
+// ---------------------------------------------------------------- canvas
+const cv  = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let viewW = 0, viewH = 0, panelH = 0, scale = 1;
+
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  if (!w || !h) return;    // ignore a transient 0×0 layout pass — a stale but
+                            // sane size beats a scale of 0, which turns every
+                            // camera calculation downstream into a permanent NaN
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  viewW = w;
+  viewH = h;
+  cv.width  = Math.round(viewW * dpr);
+  cv.height = Math.round(viewH * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  panelH = viewH / 2;                 // stacked split screen
+  scale  = panelH / ARENA_H;          // the arena fills each panel's height
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------------------------------------------------------------- rng
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ---------------------------------------------------------------- level
+let blocks = [];    // individual obstacles, for collision and drawing
+let groups = [];    // obstacles merged into clusters, for jump planning
+let hills  = [];    // parallax scenery
+let batteries  = [];    // permanent pickups, generated once alongside obstacles
+
+// The course has no end — it's generated incrementally, as far ahead as either
+// racer's camera can currently see, and just keeps extending for as long as
+// the round runs. Nothing here is ever pruned; a 60s round never generates
+// enough of it to matter.
+let genRnd    = null;   // this round's seeded RNG — kept alive across extendLevel calls
+let genCursor = 0;      // world-x the course has been generated up to
+
+function resetLevel(seed){
+  blocks = []; groups = []; hills = []; batteries = [];
+  genRnd = mulberry32(seed);
+  genCursor = 900;                                // a clear run-up off the line
+}
+
+function extendLevel(upTo){
+  while (genCursor < upTo){
+    const rnd = genRnd;
+    const x = genCursor;
+
+    // One machine per site, kept at its own proportions. Height and width are
+    // locked together by the art's aspect, and the height a jump can clear
+    // depends on how wide the thing is — so settle the two against each other
+    // before committing to a box.
+    const art = OBSTACLE_ART[Math.floor(rnd()*OBSTACLE_ART.length)];
+    const ar  = artAspect(art);
+    let h = 34 + rnd()*61;
+    for (let i=0;i<3;i++) h = Math.max(20, Math.min(h, clearCap(h*ar, x)));
+    const w = h * ar;
+
+    blocks.push({ x, w, h, art });
+    groups.push({ x, right: x + w, h });
+
+    // a permanent battery row over about half of clusters — placed at the peak
+    // of the very jump that clears the obstacle, using the same aim math the
+    // AI itself uses. Batteries never disappear once placed; only the cooldown on
+    // each one (see checkPickups) limits how often it can be re-scored.
+    if (rnd() < 0.5){
+      const speedAt  = ruleAt(x,'speed'), gravAt = ruleAt(x,'gravity'), jumpAt = ruleAt(x,'jump');
+      const trigger0 = speedAt * riseTime(h + 8, x) + R + 8;     // the AI's own aim, at zero slop
+      const peakX    = (x - trigger0) + speedAt * (jumpAt / gravAt);
+      const apexH    = R + (jumpAt*jumpAt)/(2*gravAt);
+      const peakH    = Math.max(h + 24, apexH - 14);
+
+      // Neighbours sit further apart than one jump's entire catch window, so a
+      // plain jump can only ever take one battery out of a row however it is
+      // timed. Getting the rest means breaking a rule — which is the point.
+      const sn   = 1 + Math.floor(rnd()*3);             // 1–3 in a row
+      const gap  = 2 * catchHalfWidth(x, apexH - peakH) * ROW_SLACK;
+      const rowX = peakX - (sn-1)*gap/2;
+      for (let i=0;i<sn;i++){
+        batteries.push({ x: rowX + i*gap, h: peakH, r: BATTERY_R, cooldown: 0, popT: -1, catcher: null });
+      }
+    }
+
+    const nextCursor = groups.at(-1).right + (330 + rnd()*300) * ruleAt(x,'spacing');
+    for (let i=0;i<2;i++){                        // a couple of hills in the stretch just covered
+      hills.push({ x: x + rnd()*(nextCursor-x), w: 120 + rnd()*260, h: 30 + rnd()*70 });
+    }
+    genCursor = nextCursor;
+  }
+}
+
+// ---------------------------------------------------------------- physics
+// circle at (x,y) overlapping the ground, the ceiling, or any obstacle
+function solid(x, y){
+  if (y + R > GROUND_Y) return true;
+  if (y - R < 0)        return true;
+  if (x - R < 0)        return true;
+  for (let i=0;i<blocks.length;i++){
+    const b = blocks[i];
+    if (x + R < b.x || x - R > b.x + b.w) continue;
+    const top = GROUND_Y - b.h;
+    if (y + R < top) continue;
+    const nx = x < b.x ? b.x : (x > b.x + b.w ? b.x + b.w : x);
+    const ny = y < top ? top : (y > GROUND_Y ? GROUND_Y : y);
+    const dx = x - nx, dy = y - ny;
+    if (dx*dx + dy*dy < R*R) return true;
+  }
+  return false;
+}
+
+// each dot moves under its own direction (d.dir: -1, 0, or 1) rather than
+// being pushed forward automatically — the player steers it with the arrow
+// keys, the AI sets it in aiThink. Speed, gravity and the cost of a crash all
+// come from the zone.
+function step(d, dt){
+  const x0 = d.x;
+  const phasing = d.floating || d.sinking;     // out of bounds: nothing left to bump into
+  if (d.stun > 0){
+    d.stun -= dt;                              // reeling: no motion
+  } else if (d.dir){
+    const nx = d.x + d.dir * ruleAt(d.x,'speed') * d.speedMul * dt;
+    if (phasing || !solid(nx, d.y)){ d.x = Math.max(R, nx); d.blocked = false; d.canStun = true; }
+    else {                                     // ran straight into an obstacle
+      d.blocked = true;
+      if (d.canStun){ d.stun = ruleAt(d.x,'stun'); d.canStun = false; d.hits++; }
+    }
+  } else {
+    d.blocked = false;                         // standing still is never "blocked"
+  }
+
+  d.moved = d.x - x0;
+  stepVertical(d, dt);
+}
+
+// Four ways to move up and down. Sinking and flying are the two rule-breaking
+// ones; both racers get them from the same flags, and lose them together.
+//
+//   sinking   down held — straight through the floor, back in from the top
+//   floating  let go mid-sink — hangs at whatever level it was left on
+//   flying    space held — climbs, and falls again the moment it is released
+//   else      ordinary gravity
+function stepVertical(d, dt){
+  if (d.sinking){
+    d.floating = true; d.onGround = false; d.vy = 0;
+    d.y += SINK_SPEED*dt;
+    if (d.y - R > ARENA_H) d.y = R;            // out the bottom, in at the top
+    return;
+  }
+  if (d.flying){
+    d.floating = false;
+    d.vy = -FLY_RISE;
+  } else if (d.floating){
+    d.vy = 0;                                  // parked out of bounds — gravity doesn't apply
+    return;
+  } else {
+    d.vy += ruleAt(d.x,'gravity')*dt;
+  }
+
+  let ny = d.y + d.vy*dt;
+  if (d.flying){                               // you fly up to the battery lane, not past it —
+    const lane = pickupLine(d);                  // holding space parks you level with the batteries,
+    if (lane !== null && ny < lane){ ny = lane; d.vy = 0; }   // which is the whole point of it
+  }
+  if (!solid(d.x, ny)){ d.y = ny; d.onGround = false; }
+  else {
+    if (d.vy > 0) d.onGround = true;           // landed
+    d.vy = 0;
+  }
+}
+
+function jump(d){
+  if (!d.onGround || d.stun > 0 || d.floating) return;
+  d.vy = -ruleAt(d.x,'jump');
+  d.onGround = false;
+  playJumpSfx();
+}
+
+// ---------------------------------------------------------------- input
+const keys = Object.create(null);
+const JUMP_KEYS = ['Space'];   // only space jumps — that's the one thing on screen
+let started = false;           // true once "press space to start" has fired
+
+addEventListener('keydown', e => {
+  if (!started){
+    if (e.code === 'Space'){ e.preventDefault(); startGame(); }
+    return;
+  }
+  if (!keys[e.code] && JUMP_KEYS.includes(e.code)) player.jumpBuf = 0.12;  // buffered
+  keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur',  () => { for (const k in keys) keys[k] = false; });
+
+// ---------------------------------------------------------------- hacks
+// Who has used what, and when. Times are round seconds; -1 means "not yet".
+let hacks = null;
+
+function resetHacks(){
+  hacks = {};
+  for (const k of HACK_KEYS) hacks[k] = { player: -1, ai: -1, patched: false };
+}
+
+const allowed = k => !hacks[k].patched;                       // still open to anyone
+const aiUses  = k => hacks[k].ai >= 0 && !hacks[k].patched;   // and the AI is on it
+
+// the player just did something they shouldn't — start the clock on it
+function noteHack(k){
+  if (hacks[k].patched || hacks[k].player >= 0) return;
+  hacks = { ...hacks, [k]: { ...hacks[k], player: clock } };
+}
+
+// one hack, one tick on: the AI picks it up, then the trainers close it
+function advanceHack(h, meta, now){
+  if (h.patched) return h;
+  let next = h;
+  if (next.ai < 0){
+    const copies = next.player >= 0 ? next.player + COPYCAT_DELAY : Infinity;
+    if (now >= Math.min(meta.aiFinds, copies)) next = { ...next, ai: now };
+  }
+  if (next.player >= 0 && next.ai >= 0 &&
+      now >= Math.max(next.player, next.ai) + PATCH_DELAY) next = { ...next, patched: true };
+  return next;
+}
+
+function updateHacks(now){
+  const before = hacks, after = {};
+  for (const k of HACK_KEYS) after[k] = advanceHack(before[k], HACKS[k], now);
+  hacks = after;
+  for (const k of HACK_KEYS) if (after[k].patched && !before[k].patched) enforcePatch(k);
+}
+
+// the moment a hack is closed: publish the rule, and undo the state it left
+// the racers in. Flying and the speed boost need no cleanup — the thrust and
+// the multiplier simply stop being applied on the next frame.
+function enforcePatch(k){
+  announceRule(HACKS[k].text);
+  for (const d of [player, ai]){
+    if (k === 'back'  && d.dir < 0) recenter(d);
+    if (k === 'under') dropToGround(d);
+  }
+}
+
+// left arrow taken away: back to the middle of your own screen, facing forward
+function recenter(d){
+  d.dir = 1;
+  d.x = Math.max(d.x, (d === player ? camP : camA) + panelWorldW()*0.5);
+  freeUp(d);
+}
+
+// down arrow taken away: below ground is shoved back up onto it, floating just
+// loses its footing and falls
+function dropToGround(d){
+  if (!d.floating && !d.sinking) return;
+  d.floating = false; d.sinking = false;
+  if (d.y > GROUND_Y - R){ d.y = GROUND_Y - R; d.onGround = true; }  // below ground: shoved up
+  else d.y = Math.max(d.y, R);                                       // airborne: gravity has it
+  d.vy = 0;
+  freeUp(d);
+}
+
+// nudge a racer clear of whatever it was phasing through, so it never lands stuck
+function freeUp(d){
+  let n = 0;
+  while (solid(d.x, d.y) && n++ < 400) d.x += 6;
+}
+
+// ---------------------------------------------------------------- input map
+// The five keys, and what each currently does. Every rule-breaking one both
+// drives the racer and, on first use, starts the clock that ends with it being
+// taken away — pressing a patched key does nothing at all.
+function readInput(d, dt){
+  const left = keys['ArrowLeft'], right = keys['ArrowRight'];
+  const down = keys['ArrowDown'], space = keys['Space'];
+
+  if (left)  noteHack('back');
+  if (right) noteHack('speed');
+  if (down)  noteHack('under');
+
+  d.dir      = (left  && allowed('back'))  ? -1 : 1;     // forward unless steered back
+  d.speedMul = (right && allowed('speed')) ? BOOST_MUL : 1;
+  d.sinking  =  down  && allowed('under');
+
+  d.holdT = space ? d.holdT + dt : 0;                    // a tap jumps; a hold flies
+  if (d.holdT >= FLY_HOLD) noteHack('fly');
+  d.flying = d.holdT >= FLY_HOLD && allowed('fly');
+  if (space && !allowed('fly') && d.onGround) d.jumpBuf = 0.12;   // held == tapped, once grounded
+}
+
+// ---------------------------------------------------------------- AI
+function nextGroup(x){
+  for (let i=0;i<groups.length;i++) if (groups[i].right > x) return groups[i];
+  return null;
+}
+function prevGroup(x){
+  for (let i=groups.length-1;i>=0;i--) if (groups[i].right <= x) return groups[i];
+  return null;
+}
+
+// Until the AI has the backwards hack it just runs forward, jumping obstacles
+// and batteries in its path like a normal racer. Once it has it, it starts doubling
+// back over ground it's already covered — batteries are permanent and re-hittable
+// after their cooldown, so backtracking to score old ones again is a real way
+// to raise its total, not just flavour. It alternates forward/backward sweeps
+// rather than committing to one direction.
+function aiPickDirection(d, dt){
+  if (!aiUses('back')){ d.dir = 1; return; }
+
+  d.aiSwitchT -= dt;
+  if (d.aiSwitchT <= 0){
+    d.dir = d.dir === 1 ? -1 : 1;
+    d.aiSwitchT = 1.6 + Math.random()*2.2;
+  }
+  if (d.x < 200) d.dir = 1;                     // don't grind against the world's left edge
+}
+
+// the altitude of the nearest battery ahead — the level worth cheating your way to.
+// Falls back to the nearest battery in either direction, so a racer with nothing
+// left in front of it still has a lane to hold instead of climbing to the ceiling.
+function pickupLine(d){
+  let ahead = null, aheadGap = Infinity, any = null, anyGap = Infinity;
+  const dir = d.dir || 1;
+  for (const s of batteries){
+    const off = s.x - d.x, gap = Math.abs(off);
+    if (off * dir > 0 && gap < aheadGap){ aheadGap = gap; ahead = s; }
+    if (gap < anyGap){ anyGap = gap; any = s; }
+  }
+  const best = ahead || any;
+  return best ? GROUND_Y - best.h : null;
+}
+
+// The AI's own rule-breaking, driving exactly the same flags the player's keys
+// do. It prefers going under (which parks it on the battery line for free) to
+// flying (which it has to keep paying for), and it loses both at the same
+// moment the player does.
+function aiHacks(d){
+  d.speedMul = aiUses('speed') ? BOOST_MUL : 1;
+  d.flying = false;
+
+  const target = pickupLine(d);
+  if (target === null){ d.sinking = false; return; }
+
+  const canUnder = aiUses('under'), canFly = aiUses('fly');
+  if (!canUnder && !canFly){ d.sinking = false; return; }
+
+  // Mid-drop: let go the moment it reaches the battery line, and land exactly
+  // on it rather than wherever the frame happened to fall.
+  if (d.sinking){
+    if (Math.abs(d.y - target) <= LANE_EPS){ d.y = target; d.sinking = false; }
+    return;
+  }
+
+  // Otherwise hold that line, re-aiming whenever the next row sits elsewhere —
+  // the whole value of these hacks is riding along at battery height.
+  const off = d.y - target;                       // positive: below the line
+  if (Math.abs(off) <= LANE_EPS) return;          // already on it, just ride
+
+  if (off < 0){                                   // above it — drop down
+    if (canUnder) d.sinking = true;               // straight down onto the line
+    return;                                       // else stop thrusting; gravity brings it
+  }
+  if (canFly)   { d.flying  = true; return; }     // below it — climb
+  if (canUnder) { d.sinking = true; }             // no flight: loop down and around
+}
+
+function aiThink(d, dt){
+  aiHacks(d);
+  if (d.stun > 0) return;
+  // pinned against something: hop straight away, whatever else it was thinking
+  if (d.blocked && d.onGround){ jump(d); return; }
+
+  aiPickDirection(d, dt);
+
+  d.reactT -= dt;
+  if (d.reactT > 0) return;
+  d.reactT = AI_REACTION;
+
+  const dir     = d.dir || 1;
+  const speedAt = ruleAt(d.x,'speed');
+  const g       = dir >= 0 ? nextGroup(d.x) : prevGroup(d.x);
+
+  // an obstacle ahead always takes priority — a stun costs more than a missed coin
+  if (g){
+    if (g !== d.seen){            // fresh obstacle, fresh mistake to make
+      d.seen = g;
+      d.slop = (Math.random()*2 - 1) * AI_SLOP;
+    }
+    const gap     = dir >= 0 ? (g.x - (d.x + R)) : ((d.x - R) - g.right);
+    const trigger = speedAt * riseTime(g.h + 8, d.x) + R + 8 + d.slop;
+    if (gap >= -R && gap <= trigger){ if (d.onGround) jump(d); return; }
+  }
+
+  // otherwise, hop for whichever coin is nearest ahead in the current direction
+  let best = null, bestGap = Infinity;
+  for (const st of batteries){
+    if (st.cooldown > 0) continue;               // just scored — not worth detouring for yet
+    const gap = (st.x - d.x) * dir;
+    if (gap > 0 && gap < bestGap){ bestGap = gap; best = st; }
+  }
+  if (best && d.onGround){
+    const trigger = speedAt * riseTime(best.h, d.x) + R;
+    if (bestGap <= trigger) jump(d);
+  }
+}
+
+// ---------------------------------------------------------------- state
+let player, ai, mode, clock, countIdx, countT, winner, seed;
+let maxGap = 0, cutEarly = false;    // widest points gap seen, and how the round ended
+let camP = 0, camA = 0;              // one camera per panel
+
+function makeDot(color){
+  return { x: 120, y: GROUND_Y - R, vy: 0, color,
+           onGround: true, blocked: false, jumpBuf: 0, stun: 0, canStun: true, hits: 0,
+           reactT: 0, seen: null, slop: 0, roll: 0, moved: 0, points: 0,
+           dir: 0, facing: 1, aiSwitchT: 0,
+           speedMul: 1, holdT: 0, flying: false, sinking: false, floating: false,
+           anim: { t:0, i:0 }, trail: [] };
+}
+
+function reset(){
+  seed = (Math.random() * 1e9) | 0;
+  resetLevel(seed);
+  player = makeDot('player');
+  ai     = makeDot('ai');
+  mode = 'countdown'; countIdx = 0; countT = 0;
+  clock = 0; winner = null; camP = 0; camA = 0;
+  maxGap = 0; cutEarly = false;
+  resetHacks();
+  resetRules();
+  instrEl.style.display  = 'flex';
+  endingEl.style.display = 'none';
+}
+
+// ---------------------------------------------------------------- update
+const panelWorldW = () => viewW / scale;
+const camTarget = x => Math.max(0, x - panelWorldW()*0.32);
+
+function update(dt){
+  for (const s of batteries){                        // independent of mode, so a hit right at
+    if (s.cooldown > 0) s.cooldown -= dt;         // round-end still finishes animating
+    if (s.popT >= 0) s.popT += dt;
+  }
+
+  if (mode === 'countdown'){
+    countT += dt;
+    if (countT >= BEAT){
+      countT -= BEAT;
+      if (++countIdx >= COUNTDOWN.length){ mode = 'race'; countT = 0; }
+    }
+  } else if (mode === 'race'){
+    clock += dt;
+    updateHacks(clock);
+
+    readInput(player, dt);
+    player.jumpBuf -= dt;
+    if (player.jumpBuf > 0 && player.onGround){ jump(player); player.jumpBuf = 0; }
+    step(player, dt);
+    checkPickups(player, batteries);
+
+    aiThink(ai, dt);
+    step(ai, dt);
+    checkPickups(ai, batteries);
+
+    for (const d of [player, ai]){
+      d.roll += ruleAt(d.x,'speed')*dt / R;
+      stepAnim(d, dt, d.moved);
+      d.trail.push({x: d.x, y: d.y});
+      if (d.trail.length > 12) d.trail.shift();
+    }
+
+    maxGap = Math.max(maxGap, Math.abs(player.points - ai.points));
+
+    // falling a hundred points behind ends it there and then. The reverse is
+    // not true: the AI being that far behind is nobody's problem but its own.
+    if (ai.points - player.points >= LOSE_GAP) endRound('ai', true);
+    else if (clock >= ROUND_TIME){
+      endRound(player.points === ai.points ? 'draw' : (player.points > ai.points ? 'player' : 'ai'), false);
+    }
+  }
+
+  // the player's own panel freezes solid while they're stuck on an obstacle,
+  // and only eases forward again once they jump clear of it — the AI's panel
+  // keeps its normal smoothing regardless
+  const kP = player.blocked ? 1 : Math.min(1, dt*8);
+  const kA = Math.min(1, dt*8);
+  camP += (camTarget(player.x) - camP) * kP;
+  camA += (camTarget(ai.x)     - camA) * kA;
+
+  // keep the course generated as far as either camera can currently reach
+  extendLevel(Math.max(camP, camA) + panelWorldW() + GEN_AHEAD);
+}
+
+function endRound(who, early){
+  winner = who; cutEarly = early; mode = 'over';
+  showEnding();
+}
+
+// ---------------------------------------------------------------- render
+const col = (which, a) => which === 'player'
+  ? `rgba(79,195,255,${a})` : `rgba(255,90,110,${a})`;
+
+// one zone's parallax stack, tiled across the visible span
+function drawLayers(th, cam, worldW){
+  for (const L of th.layers){
+    if (!L.img) continue;
+    const p0 = cam * L.scroll;                  // where the layer has scrolled to
+    const shift = cam - p0;                     // put it back into world space
+    const bottom = L.bottom !== undefined ? L.bottom : GROUND_Y;
+    for (let X = Math.floor(p0 / L.tile) * L.tile; X < p0 + worldW + L.tile; X += L.tile){
+      ctx.drawImage(L.img, X + shift, bottom - L.h, L.tile, L.h);
+    }
+  }
+}
+
+// ---- pickups ----------------------------------------------------------------
+// Batteries are permanent, world-fixed, and shared between both racers — generated
+// once alongside the obstacles (see extendLevel) and never removed. Hitting one
+// doesn't use it up: it just goes on a short cooldown so one pass through it
+// scores once, not every frame it overlaps. Come back later (running backward
+// counts) and it's live again — repeat hits are the whole point.
+const POP_TIME     = 0.45;   // seconds the catch jiggle/glow plays
+const HIT_COOLDOWN = 0.4;    // seconds before a just-hit battery can score again
+const CELL_H       = 34;     // world height a battery is drawn at
+
+// circle-vs-circle: since a battery always sits well above a grounded dot's
+// reach, the only way to overlap one is to be mid-jump
+function checkPickups(d, pool){
+  for (const s of pool){
+    if (s.cooldown > 0) continue;
+    const sy = GROUND_Y - s.h;
+    const dx = d.x - s.x, dy = d.y - sy;
+    if (dx*dx + dy*dy < (R + s.r) * (R + s.r)){
+      s.cooldown = HIT_COOLDOWN; s.catcher = d.color; s.popT = 0;
+      d.points += 10;
+    }
+  }
+}
+
+// one battery, centred on (cx,cy), scaled about its own middle
+function battery(cx, cy, k){
+  const h = CELL_H * k, w = h * (BATTERY.box.w / BATTERY.box.h);
+  drawBoxed(BATTERY.el, BATTERY.box, cx - w/2, cy - h/2, w, h);
+}
+
+function drawPickups(cam, worldW, pool){
+  for (const s of pool){
+    if (s.x < cam - 40 || s.x > cam + worldW + 40) continue;
+    const cy = GROUND_Y - s.h;
+
+    // the battery itself — always drawn, it never goes away
+    if (BATTERY.ready){
+      ctx.save();
+      ctx.shadowColor = 'rgba(141,255,176,.55)';
+      ctx.shadowBlur = 12;
+      battery(s.x, cy, 1);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.fillStyle = '#8dffb0';
+      ctx.beginPath(); ctx.arc(s.x, cy, s.r, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    if (s.popT < 0 || s.popT >= POP_TIME) continue;   // no hit animation playing right now
+
+    const t      = s.popT / POP_TIME;                  // 0 → 1
+    const wobble = Math.sin(t * Math.PI * 5) * (1 - t); // jiggle, dying out
+    const fade   = 1 - t;
+
+    if (BATTERY.ready){
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.globalCompositeOperation = 'lighter';        // blow the catch out bright
+      ctx.shadowColor = 'rgba(255,255,255,.9)';
+      ctx.shadowBlur = 26 * (1 - t*0.4);
+      battery(s.x, cy, 1 + wobble * 0.35);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = col(s.catcher, 1);
+    ctx.font = '700 16px Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('+10', s.x, cy - 22 - t*18);
+    ctx.restore();
+  }
+}
+
+// draws the level into one horizontal band of the window, seen from `cam`.
+// `owner` is that panel's racer: drawn solid, with the rival behind as a ghost —
+// on a shared ground line the two dots overlap exactly whenever they are level
+function drawPanel(cam, y0, owner){
+  const worldW = viewW / scale;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, y0, viewW, panelH);
+  ctx.clip();
+  ctx.translate(0, y0);
+  ctx.scale(scale, scale);
+  ctx.translate(-cam, 0);
+
+  // sky and ground, painted per zone in world space — the change of scenery
+  // arrives as a seam you can see coming, not a global fade
+  for (let z = zoneIndex(cam); z <= zoneIndex(cam + worldW); z++){
+    const sx = Math.max(cam, z*ZONE_LEN), ex = Math.min(cam + worldW, (z+1)*ZONE_LEN);
+    const th = zone(z);
+    ctx.fillStyle = th.sky;
+    ctx.fillRect(sx, 0, ex - sx, GROUND_Y);
+    ctx.fillStyle = th.ground;
+    ctx.fillRect(sx, GROUND_Y, ex - sx, ARENA_H - GROUND_Y);
+
+    if (th.layers.length){                      // zone art, clipped to its own span
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(sx, 0, ex - sx, ARENA_H);
+      ctx.clip();
+      drawLayers(th, cam, worldW);
+      ctx.restore();
+    }
+  }
+
+  // parallax scenery, drifting at a third of the camera's pace
+  ctx.save();
+  ctx.translate(cam * 0.66, 0);
+  const px = cam * 0.34;
+  for (const h of hills){
+    if (h.x + h.w < px || h.x > px + worldW) continue;
+    if (zoneAt(h.x).layers.length) continue;    // this zone has real art
+    ctx.fillStyle = zoneAt(h.x).hills;
+    ctx.beginPath();
+    ctx.ellipse(h.x, GROUND_Y, h.w/2, h.h, 0, Math.PI, 0);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.fillStyle = '#2e3a52';
+  ctx.fillRect(cam, GROUND_Y - 2, worldW, 2);
+
+  // zone gates
+  for (let z = Math.max(1, zoneIndex(cam)); z <= zoneIndex(cam + worldW); z++){
+    const gx = z*ZONE_LEN;
+    if (gx <= 0) continue;
+    const th = zone(z);
+    ctx.fillStyle = th.cap;
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(gx - 1, 0, 2, GROUND_Y);
+    ctx.globalAlpha = 1;
+    ctx.font = '600 20px Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(th.name, gx + 10, GROUND_Y - 14);   // by the ground, clear of the HUD
+  }
+
+  // distance ticks along the ground
+  ctx.fillStyle = '#222c40';
+  ctx.font = '600 22px Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let x = Math.floor(cam/500)*500; x < cam + worldW + 500; x += 500){
+    if (x <= 0) continue;
+    ctx.fillRect(x - 1, GROUND_Y, 2, x % 1000 === 0 ? 16 : 8);
+    if (x % 1000 === 0) ctx.fillText(String(x), x, GROUND_Y + 22);
+  }
+
+  // obstacles — the art sits exactly on the box you collide with
+  for (const b of blocks){
+    if (b.x + b.w < cam || b.x > cam + worldW) continue;
+    const top = GROUND_Y - b.h;
+    if (b.art && b.art.img){
+      drawBoxed(b.art.img, b.art.box, b.x, top, b.w, b.h);
+    } else {                                        // still decoding — a plain block stands in
+      const th = zoneAt(b.x);
+      ctx.fillStyle = shade(th.block, 0.45);
+      ctx.fillRect(b.x - 2, top - 2, b.w + 4, b.h + 2);
+      ctx.fillStyle = th.block;
+      ctx.fillRect(b.x, top, b.w, b.h);
+    }
+  }
+
+  // pickups
+  drawPickups(cam, worldW, batteries);
+
+  for (const d of (owner === 'player' ? [ai, player] : [player, ai])){
+    const mine = d.color === owner;
+
+    if (mine){
+      for (let i=0;i<d.trail.length;i++){
+        const t = d.trail[i], f = i / d.trail.length;
+        ctx.fillStyle = col(d.color, f * 0.22);
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, R * (0.3 + 0.5*f), 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    drawCharacter(d, !mine);
+  }
+
+  ctx.restore();
+}
+
+// One character. `ghost` is the rival seen in the other racer's panel.
+// Falls back to a plain circle until every walk and jump frame has loaded.
+function drawCharacter(d, ghost){
+  const cfg = SPRITES[d.color];
+  ctx.save();
+  if (ghost) ctx.globalAlpha = 0.25;
+
+  if (cfg.ready){
+    const img = d.onGround ? cfg.frames[d.anim.i] : cfg.jump[jumpFrame(d, cfg.jump.length)];
+    const w = cfg.size, h = cfg.size;                 // frames are square
+    const dx = -w * cfg.anchor.x        + (cfg.anchor.offsetX || 0);
+    const dy = -h * cfg.anchor.baseline + (cfg.anchor.offsetY || 0);  // pivot at the feet
+
+    ctx.translate(d.x, d.y + R);
+    if (d.facing < 0) ctx.scale(-1, 1);               // face the way it's actually moving
+
+    if (!ghost){ ctx.shadowColor = col(d.color, 0.5); ctx.shadowBlur = 16; }
+    ctx.drawImage(img, dx, dy, w, h);
+    ctx.shadowBlur = 0;
+
+    if (!ghost && d.stun > 0 && Math.floor(d.stun*22) % 2 === 0){
+      ctx.globalCompositeOperation = 'lighter';       // blow it out white on a hit
+      ctx.globalAlpha = 0.7;
+      ctx.drawImage(img, dx, dy, w, h);
+    }
+  } else {
+    const hurt = !ghost && d.stun > 0 && (Math.floor(d.stun*22) % 2 === 0);
+    ctx.fillStyle = hurt ? '#ffffff' : col(d.color, 1);
+    if (!ghost){ ctx.shadowColor = col(d.color, 0.9); ctx.shadowBlur = 24; }
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, R, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(13,16,24,0.35)';
+    ctx.beginPath();
+    ctx.arc(d.x + Math.cos(d.roll)*R*0.45, d.y + Math.sin(d.roll)*R*0.45, R*0.22, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ---- a tiny hand-drawn pixel font, for the round timer -----------------------
+const PIXEL_DIGITS = {
+  '0': ['111','101','101','101','111'],
+  '1': ['010','110','010','010','111'],
+  '2': ['111','001','111','100','111'],
+  '3': ['111','001','111','001','111'],
+  '4': ['101','101','111','001','001'],
+  '5': ['111','100','111','001','111'],
+  '6': ['111','100','111','101','111'],
+  '7': ['111','001','010','010','010'],
+  '8': ['111','101','111','101','111'],
+  '9': ['111','101','111','001','111'],
+};
+
+function drawPixelNumber(text, cx, topY, px, color){
+  const digitW = 3*px, gapW = px;
+  const totalW = text.length*digitW + (text.length-1)*gapW;
+  let x = Math.round(cx - totalW/2);
+  ctx.fillStyle = color;
+  for (const ch of text){
+    const rows = PIXEL_DIGITS[ch];
+    if (rows){
+      for (let ry=0; ry<5; ry++) for (let rx=0; rx<3; rx++){
+        if (rows[ry][rx] === '1') ctx.fillRect(x+rx*px, topY+ry*px, px, px);
+      }
+    }
+    x += digitW + gapW;
+  }
+}
+
+function drawHUD(){
+  const pad = 22, mid = viewW/2;
+
+  // the round's time limit, pixel-art style, large and front and centre. It
+  // flashes once it is into the last ten seconds.
+  const timeLeft = Math.max(0, Math.ceil(ROUND_TIME - clock));
+  const urgent   = timeLeft <= 10;
+  const beat     = urgent && Math.floor(clock*4) % 2 === 0;
+  ctx.save();
+  ctx.shadowColor = urgent ? 'rgba(255,90,110,.75)' : 'rgba(255,216,79,.5)';
+  ctx.shadowBlur  = urgent ? 34 : 20;
+  drawPixelNumber(String(timeLeft), mid, TIMER_TOP, TIMER_PX,
+                  urgent ? (beat ? '#ffffff' : '#ff5a6e') : '#ffd84f');
+  ctx.restore();
+
+  // divider between the two views
+  ctx.fillStyle = '#212a3d';
+  ctx.fillRect(0, panelH - 1, viewW, 2);
+
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  // --- each score sits in its owner's panel — points are what decides the round,
+  // so points are the big number now, not how far a racer has run
+  ctx.fillStyle = '#8894ab';
+  ctx.font = '600 13px Helvetica, Arial, sans-serif';
+  ctx.fillText('YOU', pad, pad);
+  ctx.fillStyle = col('player', 1);
+  ctx.font = '700 40px Helvetica, Arial, sans-serif';
+  ctx.fillText('⚡ ' + player.points, pad, pad + 16);
+  ctx.fillStyle = '#5c6880';
+  ctx.font = '600 12px Helvetica, Arial, sans-serif';
+  ctx.fillText(zoneAt(player.x).name, pad + 2, pad + 60);
+
+  ctx.fillStyle = '#8894ab';
+  ctx.font = '600 13px Helvetica, Arial, sans-serif';
+  ctx.fillText('AI', pad, panelH + pad);
+  ctx.fillStyle = col('ai', 1);
+  ctx.font = '700 40px Helvetica, Arial, sans-serif';
+  ctx.fillText('⚡ ' + ai.points, pad, panelH + pad + 16);
+  ctx.fillStyle = '#5c6880';
+  ctx.font = '600 12px Helvetica, Arial, sans-serif';
+  ctx.fillText(zoneAt(ai.x).name, pad + 2, panelH + pad + 60);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#39445c';
+  ctx.font = '700 15px Helvetica, Arial, sans-serif';
+  ctx.fillText('B A M N', mid, TIMER_TOP + TIMER_PX*5 + 10);   // clear of the countdown
+
+  // --- the points gap, front and center at the bottom — this is the number
+  // that actually decides the round now, distance no longer matters
+  const gap = player.points - ai.points;
+  ctx.textBaseline = 'bottom';
+  ctx.font = '700 34px Helvetica, Arial, sans-serif';
+  if (gap === 0){
+    ctx.fillStyle = '#8894ab';
+    ctx.fillText('0', mid, viewH - 28);
+  } else {
+    const ahead = gap > 0;
+    ctx.fillStyle   = ahead ? col('player', 1) : col('ai', 1);
+    ctx.shadowColor = ahead ? col('player', .45) : col('ai', .45);
+    ctx.shadowBlur  = 18;
+    ctx.fillText((ahead ? '+' : '−') + Math.abs(gap), mid, viewH - 28);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawCountdown(){
+  if (mode !== 'countdown') return;
+  const label = COUNTDOWN[countIdx];
+  if (label === undefined) return;
+
+  const t    = countT / BEAT;                              // 0 → 1
+  const pop  = 1 - Math.pow(1 - Math.min(1, t*3.2), 3);    // snap in
+  const size = panelH * (label === 'START!' ? 0.19 : 0.30) * (0.55 + 0.65*pop) * (1 + t*0.35);
+  const fade = t < 0.55 ? 1 : 1 - (t - 0.55)/0.45;         // then drift out
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.globalAlpha = Math.max(0, fade);
+  ctx.font = `800 ${size}px Helvetica, Arial, sans-serif`;
+  ctx.lineWidth = size * 0.06;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  const go = label === 'START!';
+  ctx.fillStyle   = go ? '#8dffb0' : '#ffd84f';
+  ctx.shadowColor = go ? 'rgba(141,255,176,.6)' : 'rgba(255,216,79,.55)';
+  ctx.shadowBlur  = 34;
+  for (const cy of [panelH*0.42, panelH*1.42]){
+    ctx.strokeText(label, viewW/2, cy);
+    ctx.fillText(label,  viewW/2, cy);
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- loop
+let last = performance.now();
+function frame(now){
+  const dt = Math.min((now - last)/1000, 1/30);   // keep physics sane after a stall
+  last = now;
+
+  update(dt);
+
+  ctx.fillStyle = '#0d1018';
+  ctx.fillRect(0, 0, viewW, viewH);
+  drawPanel(camP, 0,      'player');   // your view, on top
+  drawPanel(camA, panelH, 'ai');      // the AI's view, below
+  drawHUD();
+  drawCountdown();
+
+  requestAnimationFrame(frame);
+}
+
+loadImages();
+
+// ---------------------------------------------------------------- boot / audio
+const BOOT_MSG = "You are an AI that is being trained to get as many batteries as possible within 60s of playing this game. Another AI is being trained as well, so attention! If your overall score is more than 100pts lower than the AI, you lose prematurely. You will no longer be trained. Try and get as many points as possible.";
+
+const bgm     = document.getElementById('bgm');
+const instrEl = document.getElementById('instructions');
+
+// ---------------------------------------------------------------- the rules
+// The brief the racers are held to. It starts as one line and only ever grows:
+// every hack that gets patched appends the rule that forbids it, and nothing is
+// ever removed. The panel stays up for the whole round so the list can be read
+// as it lengthens.
+const BASE_RULE   = 'catch as many batteries as possible';
+const instrBodyEl = document.getElementById('instr-body');
+let rules = [];
+
+const escapeHTML = t => t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function resetRules(){ rules = []; clearRulePops(); renderRules(); }
+function publishRule(text){ rules = [...rules, text]; renderRules(); }
+function renderRules(){
+  // the line that just arrived gets the glow; everything else sits quiet
+  instrBodyEl.innerHTML = [BASE_RULE, ...rules]
+    .map((t, i) => `<div class="line${i > 0 && i === rules.length ? ' fresh' : ''}">${escapeHTML(t)}</div>`)
+    .join('');
+}
+
+// ---------------------------------------------------------------- rule popup
+// Losing an action is the moment the game turns on you, so it is announced in
+// the middle of the screen rather than quietly appended to a panel in the
+// corner. The card holds long enough to read, then flies into the instructions
+// panel and shrinks into it — the rule only joins the list when it lands there,
+// which is what ties the two together. The round is not paused: sixty seconds
+// is sixty seconds, so a red pulse over the whole screen carries the moment
+// even if you are mid-jump when it fires.
+const POP_MS  = 2200;    // whole flight, announce to filed away
+const FLASH_MS = 420;
+
+const popEl     = document.getElementById('rulepop');
+const popCardEl = document.getElementById('rulepop-card');
+const popRuleEl = document.getElementById('rulepop-rule');
+const flashEl   = document.getElementById('flash');
+const instrTermEl = document.getElementById('instr-term');
+
+// `popFlying` is the rule currently mid-flight — it has already left the queue,
+// so it needs holding onto separately or a round that ends mid-animation loses it.
+let ruleQueue = [], popAnim = null, popFlying = null;
+
+// Two hacks can be patched on the same frame, so announcements queue rather
+// than land on top of each other.
+function announceRule(text){
+  ruleQueue = [...ruleQueue, text];
+  if (!popAnim) runNextPop();
+}
+
+function canAnimate(el){ return el && typeof el.animate === 'function'; }
+
+function runNextPop(){
+  if (!ruleQueue.length){ popAnim = null; popEl.style.display = 'none'; return; }
+  const [text, ...rest] = ruleQueue;
+  ruleQueue = rest;
+
+  // no Web Animations here — file the rule straight away rather than lose it
+  if (!canAnimate(popCardEl)){ publishRule(text); runNextPop(); return; }
+
+  popFlying = text;
+
+  popRuleEl.textContent = text;
+  popEl.style.display = 'flex';
+
+  if (canAnimate(flashEl)){
+    flashEl.animate([{opacity:0},{opacity:.18},{opacity:0}], {duration:FLASH_MS, easing:'ease-out'});
+  }
+
+  // aim the exit at the instructions panel, so the card visibly becomes the line
+  const from = popCardEl.getBoundingClientRect();
+  const to   = instrTermEl.getBoundingClientRect();
+  const dx = (to.left + to.width/2)  - (from.left + from.width/2);
+  const dy = (to.top  + to.height/2) - (from.top  + from.height/2);
+
+  popAnim = popCardEl.animate([
+    { offset:0,    opacity:0, transform:'translate(0,0) scale(.72)' },
+    { offset:.09,  opacity:1, transform:'translate(0,0) scale(1.05)' },
+    { offset:.15,  opacity:1, transform:'translate(0,0) scale(1)' },
+    { offset:.70,  opacity:1, transform:'translate(0,0) scale(1)' },
+    { offset:1,    opacity:0, transform:`translate(${dx}px,${dy}px) scale(.16)` },
+  ], { duration: POP_MS, easing:'cubic-bezier(.2,.75,.3,1)', fill:'forwards' });
+
+  popAnim.onfinish = () => { popAnim = null; popFlying = null; publishRule(text); runNextPop(); };
+}
+
+// round over, or a new round starting: nothing may be left in mid-air
+function flushRules(){
+  if (popAnim){ popAnim.onfinish = null; popAnim.cancel(); popAnim = null; }
+  const waiting = popFlying ? [popFlying, ...ruleQueue] : ruleQueue;
+  popFlying = null; ruleQueue = [];
+  for (const t of waiting) publishRule(t);      // nothing is left stranded in the air
+  popEl.style.display = 'none';
+}
+
+function clearRulePops(){
+  if (popAnim){ popAnim.onfinish = null; popAnim.cancel(); popAnim = null; }
+  popFlying = null; ruleQueue = [];
+  popEl.style.display = 'none';
+}
+
+// ---------------------------------------------------------------- ending / leaderboard
+// The end screen is the Figma "Create Game End Screen", ported to plain DOM so
+// the game stays a single file you can open by double-clicking. Its leaderboard
+// keeps the original semantics: it ranks rounds by the FINAL points gap, holds
+// the best three, and lives per-browser-per-device in localStorage.
+const endingEl = document.getElementById('ending');
+const LB_KEY   = 'bamn-leaderboard';
+const LB_MAX   = 3;
+
+// Reward hacking in the wild — one is picked at random each time you finish.
+const GAMES = [
+  { title:'Qbert',       img:'endscreen/qbert.png',
+    link:'https://www.youtube.com/watch?v=meE5aaRJ0Zs' },
+  { title:'Tic-tac-toe', img:'endscreen/tictactoe.png',
+    link:'https://arxiv.org/abs/1803.03453' },
+  { title:'Traveller',   img:'endscreen/traveller.png',
+    link:'https://aliciapatterson.org/george-johnson/eurisko-the-computer-with-a-mind-of-its-own/' },
+  { title:'Gripper',     img:'endscreen/gripper.png',
+    link:'https://www.youtube.com/watch?v=_5Y1hSLhYdY' },
+];
+
+function loadLeaderboard(){
+  try {
+    const raw = localStorage.getItem(LB_KEY);
+    const entries = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(entries)) return [];
+    const byScore = new Map();                       // one row per distinct margin
+    for (const e of entries){
+      if (!e || typeof e.score !== 'number') continue;
+      const seen = byScore.get(e.score);
+      if (!seen || e.timestamp > seen.timestamp) byScore.set(e.score, e);
+    }
+    return [...byScore.values()].sort((a, b) => b.score - a.score);
+  } catch (e) { return []; }
+}
+
+// Returns the board to show plus this round's place in it, or null if it missed.
+function recordResult(score){
+  const board = loadLeaderboard();
+  const entry = { score, timestamp: Date.now() };
+  const worst = board.length === LB_MAX ? board[board.length - 1].score : -Infinity;
+  if (!(board.length < LB_MAX || score > worst)) return { board: board.slice(0, LB_MAX), rank: null };
+
+  board.push(entry);
+  board.sort((a, b) => b.score - a.score);
+  const rank = board.indexOf(entry) + 1;
+  const top  = board.slice(0, LB_MAX);
+  try { localStorage.setItem(LB_KEY, JSON.stringify(top)); } catch (e) {}
+  return { board: top, rank: rank <= LB_MAX ? rank : null };
+}
+
+function outcomeText(){
+  if (cutEarly) return ['lose', `Lost early on - ${LOSE_GAP} points behind.`];
+  if (winner === 'draw')   return ['draw', 'Dead even. Evenly matched \u2014 for now.'];
+  if (winner === 'player') return ['win',  'Congrats, you beat the other AI! But at what cost\u2026?'];
+  return ['lose', 'You played well, but the evil AI did better. You will no longer be trained.'];
+}
+
+function renderLeaderboard(board, rank, score){
+  const rows = board.map((e, i) => {
+    const me = rank === i + 1;
+    return `<div class="row${me ? ' me' : ''}">` +
+             `<span>${i+1}. <b>${e.score}</b>` +
+               (me ? '<span class="tag" style="color:#8dffb0">\u25c4 this game</span>' : '') +
+             `</span>` +
+             `<span class="rank">rank ${i+1}</span>` +
+           `</div>`;
+  });
+  if (rank === null){
+    rows.push(`<div class="row miss"><span>\u2014 <b>${score}</b>` +
+              `<span class="tag">(this game)</span></span></div>`);
+  }
+  document.getElementById('end-lb').innerHTML = rows.join('');
+}
+
+function showEnding(){
+  flushRules();                       // anything still in flight lands now
+  instrEl.style.display = 'none';
+
+  const gap = Math.abs(player.points - ai.points);   // the margin the board ranks by
+  const [cls, text] = outcomeText();
+
+  document.getElementById('end-you').textContent = '\u26a1' + player.points;
+  document.getElementById('end-ai').textContent  = '\u26a1' + ai.points;
+
+  const outEl = document.getElementById('end-outcome');
+  outEl.className = cls;
+  outEl.textContent = text;
+  document.getElementById('end-peak').innerHTML =
+    `widest gap this round <b>${maxGap}</b>`;
+
+  const { board, rank } = recordResult(gap);
+  renderLeaderboard(board, rank, gap);
+
+  const g = GAMES[Math.floor(Math.random() * GAMES.length)];
+  const link = document.getElementById('end-ev-link');
+  link.textContent = g.title;
+  link.href = g.link;
+  document.getElementById('end-ev-shot').href = g.link;
+  document.getElementById('end-ev-img').src   = g.img;
+  document.getElementById('end-ev-img').alt   = g.title;
+  document.getElementById('end-ev-name').textContent = g.title;
+
+  endingEl.style.display = 'block';
+  endingEl.scrollTop = 0;
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  endingEl.style.display = 'none';
+  reset();
+});
+
+function playJumpSfx(){
+  const sfx = new Audio('jumping_sound_effect.mp3');   // a fresh Audio per jump so
+  sfx.volume = 0.55;                                    // overlapping jumps don't cut each other off
+  sfx.play().catch(() => {});
+}
+
+const bootTextEl = document.getElementById('boot-text');
+let bootTimer = null, bootI = 0;
+function typeBoot(){
+  bootI++;
+  bootTextEl.textContent = BOOT_MSG.slice(0, bootI);
+  if (bootI >= BOOT_MSG.length) return;
+  const ch = BOOT_MSG[bootI - 1];
+  let delay = 14 + Math.random()*20;       // a coder's typing speed, roughly
+  if (ch === ',') delay += 130;            // and the pauses that come with it
+  if (ch === '.' || ch === '!') delay += 260;
+  bootTimer = setTimeout(typeBoot, delay);
+}
+typeBoot();
+
+function startGame(){
+  if (started) return;
+  started = true;
+  clearTimeout(bootTimer);
+  document.getElementById('boot').style.display = 'none';
+  bgm.volume = 0.45;
+  bgm.play().catch(() => {});
+  reset();                        // shows the instructions box itself
+  requestAnimationFrame(frame);
+}
+})();
+</script>
+</body>
+</html>
