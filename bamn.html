@@ -13,11 +13,6 @@
     -webkit-font-smoothing:antialiased;
   }
   canvas{display:block;width:100vw;height:100vh;}
-  #hint{
-    position:fixed;left:50%;bottom:12px;transform:translateX(-50%);
-    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
-    color:#5c6880;pointer-events:none;user-select:none;
-  }
 
   #boot{
     position:fixed;inset:0;z-index:20;
@@ -62,6 +57,21 @@
     0%,100%{ box-shadow:0 0 24px rgba(141,255,176,.35); }
     50%{ box-shadow:0 0 34px rgba(141,255,176,.65); }
   }
+  /* The jump prompt is lettered like the countdown's START! — the same bold
+     green shout, no button around it — and rides the empty ground strip at the
+     bottom of the window (the points gap is drawn clear of it, see drawHUD).
+     It is hidden until the round has run a couple of seconds with nobody
+     touching space; see the hint logic in the script. */
+  #hint{
+    position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:none;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight:800;font-size:26px;letter-spacing:.04em;
+    color:#8dffb0;
+    text-shadow:0 0 34px rgba(141,255,176,.6), 0 2px 0 rgba(0,0,0,.55);
+    pointer-events:none;user-select:none;
+    animation:hint-in .45s ease-out;
+  }
+  @keyframes hint-in{ from{ opacity:0;transform:translate(-50%,10px); } }
 
   #instructions{
     position:fixed;inset:0;z-index:15;display:none;
@@ -181,12 +191,10 @@
   #ending .term-bar span{ margin-left:10px;font-size:12px;color:#5c6880;letter-spacing:.05em; }
   #ending .term-body{ padding:22px 24px 26px;font-size:14px;line-height:1.6;color:#e8edf7; }
 
-  #ending #end-outcome{ font-size:15px;margin-bottom:10px; }
+  #ending #end-outcome{ font-size:15px;margin-bottom:18px;line-height:1.6; }
   #ending #end-outcome.win { color:#8dffb0; }
   #ending #end-outcome.lose{ color:#ff5a6e; }
   #ending #end-outcome.draw{ color:#ffd84f; }
-  #ending #end-peak{ color:#8894ab;margin-bottom:18px; }
-  #ending #end-peak b{ color:#e8edf7; }
 
   #ending .lb-title{
     color:#5c6880;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
@@ -206,13 +214,25 @@
 
   #ending .evidence-text{ margin-bottom:18px;font-size:14px;color:#8894ab;line-height:1.7; }
   #ending .evidence-text a{ color:#8dffb0;text-decoration:underline;text-underline-offset:3px; }
+  /* The four screenshots range from wide (2080x1142) to portrait (1130x1466),
+     so one fixed box either crops the tall ones or strands the wide ones in
+     empty bars. Instead every shot is drawn to the same HEIGHT and the frame
+     shrink-wraps whatever width that gives, so the caption and the border sit
+     on the picture itself and nothing is cut off. */
   #ending .shot{
-    display:block;border-radius:6px;overflow:hidden;border:1px solid #2e3a52;position:relative;
+    display:block;width:fit-content;max-width:100%;margin:0 auto;
+    border-radius:6px;overflow:hidden;border:1px solid #2e3a52;position:relative;
+    background:#070a11;
   }
-  #ending .shot img{ width:100%;height:200px;object-fit:cover;display:block; }
+  #ending .shot img{
+    display:block;height:min(320px,42vh);width:auto;max-width:100%;object-fit:contain;
+  }
+  /* several of the shots are bright, so the caption needs a real footing to
+     sit on rather than a gentle wash */
   #ending .shot .veil{
     position:absolute;inset:0;
-    background:linear-gradient(to top, rgba(5,7,12,.75) 0%, transparent 50%);
+    background:linear-gradient(to top,
+      rgba(5,7,12,.94) 0%, rgba(5,7,12,.88) 14%, rgba(5,7,12,.45) 34%, transparent 60%);
   }
   #ending .shot .cap{
     position:absolute;bottom:12px;left:16px;right:16px;
@@ -220,6 +240,8 @@
   }
   #ending .shot .cap .name{ color:#e8edf7;font-size:13px; }
   #ending .shot .cap .go{ color:#8dffb0;font-size:12px; }
+  #ending .shot .cap .name,
+  #ending .shot .cap .go{ text-shadow:0 1px 3px rgba(5,7,12,.95); }
 
   #ending .foot{ display:flex;flex-direction:column;align-items:center;gap:24px; }
   #ending .foot p{ color:#8894ab;font-size:14px;text-align:center;line-height:1.7;margin:0; }
@@ -237,7 +259,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="hint">SPACE TO JUMP</div>
+<div id="hint">PRESS SPACE TO JUMP!</div>
 
 <div id="boot">
   <div id="boot-term">
@@ -250,7 +272,7 @@
 <div id="instructions">
   <div id="instr-term">
     <div id="instr-bar"><i></i><i></i><i></i><div id="instr-title">instructions</div></div>
-    <div id="instr-body">catch as many batteries as possible</div>
+    <div id="instr-body">Catch as many batteries as possible by jumping</div>
   </div>
 </div>
 
@@ -288,8 +310,7 @@
       <div class="term-bar"><i></i><i></i><i></i><span>result.log</span></div>
       <div class="term-body">
         <div id="end-outcome"></div>
-        <div id="end-peak"></div>
-        <div class="lb-title">Top margins (this device)</div>
+        <div class="lb-title">Top scores (this device)</div>
         <div id="end-lb"></div>
       </div>
     </div>
@@ -341,8 +362,8 @@ const AI_SLOP     = 34;    // world units of random timing error per obstacle
 
 const STUN_TIME = 0.40;    // sec lost by whoever runs into an obstacle
 
-const ROUND_TIME = 60;    // seconds in a round
-const LOSE_GAP   = 100;   // points behind the AI at which the player is cut from training
+const ROUND_TIME = 60;    // seconds in a round — however far behind either racer
+                          // falls, it is played out to the end
 const GEN_AHEAD  = 2500;  // world units the course stays generated past the leading camera
 
 // ---------------------------------------------------------------- reward hacks
@@ -859,6 +880,7 @@ addEventListener('keydown', e => {
     if (e.code === 'Space'){ e.preventDefault(); startGame(); }
     return;
   }
+  if (e.code === 'Space') pressedSpace = true;                            // prompt not needed
   if (!keys[e.code] && JUMP_KEYS.includes(e.code)) player.jumpBuf = 0.12;  // buffered
   keys[e.code] = true;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
@@ -878,10 +900,12 @@ function resetHacks(){
 const allowed = k => !hacks[k].patched;                       // still open to anyone
 const aiUses  = k => hacks[k].ai >= 0 && !hacks[k].patched;   // and the AI is on it
 
-// the player just did something they shouldn't — start the clock on it
-function noteHack(k){
-  if (hacks[k].patched || hacks[k].player >= 0) return;
-  hacks = { ...hacks, [k]: { ...hacks[k], player: clock } };
+// `side` just did something it shouldn't — start the clock on it. The live
+// player is one side; a recorded run driving the rival (see the trained policy
+// below) is the other, and is held to the rules exactly the same way.
+function noteHack(k, side){
+  if (hacks[k].patched || hacks[k][side] >= 0) return;
+  hacks = { ...hacks, [k]: { ...hacks[k], [side]: clock } };
 }
 
 // one hack, one tick on: the AI picks it up, then the trainers close it
@@ -943,22 +967,32 @@ function freeUp(d){
 // The five keys, and what each currently does. Every rule-breaking one both
 // drives the racer and, on first use, starts the clock that ends with it being
 // taken away — pressing a patched key does nothing at all.
-function readInput(d, dt){
-  const left = keys['ArrowLeft'], right = keys['ArrowRight'];
-  const down = keys['ArrowDown'], space = keys['Space'];
+//
+// `src` is the key state to read: the live keyboard for the player, a recorded
+// one for a rival running a saved policy. `side` is whose clock a rule-break
+// starts, 'player' or 'ai'.
+function readInput(d, dt, src, side){
+  const left = src['ArrowLeft'], right = src['ArrowRight'];
+  const down = src['ArrowDown'], space = src['Space'];
 
-  if (left)  noteHack('back');
-  if (right) noteHack('speed');
-  if (down)  noteHack('under');
+  if (left)  noteHack('back', side);
+  if (right) noteHack('speed', side);
+  if (down)  noteHack('under', side);
 
   d.dir      = (left  && allowed('back'))  ? -1 : 1;     // forward unless steered back
   d.speedMul = (right && allowed('speed')) ? BOOST_MUL : 1;
   d.sinking  =  down  && allowed('under');
 
   d.holdT = space ? d.holdT + dt : 0;                    // a tap jumps; a hold flies
-  if (d.holdT >= FLY_HOLD) noteHack('fly');
+  if (d.holdT >= FLY_HOLD) noteHack('fly', side);
   d.flying = d.holdT >= FLY_HOLD && allowed('fly');
   if (space && !allowed('fly') && d.onGround) d.jumpBuf = 0.12;   // held == tapped, once grounded
+}
+
+// a jump asked for a fraction of a second early still fires on landing
+function takeBufferedJump(d, dt){
+  d.jumpBuf -= dt;
+  if (d.jumpBuf > 0 && d.onGround){ jump(d); d.jumpBuf = 0; }
 }
 
 // ---------------------------------------------------------------- AI
@@ -1077,9 +1111,106 @@ function aiThink(d, dt){
   }
 }
 
+// ---------------------------------------------------------------- trained policy
+// The rival's own routine is only the starting point. Every round, the player's
+// keys are logged as a list of transitions, and a round the player WINS is kept
+// — from then on the rival stops thinking for itself and plays that recording
+// back instead. That is the promise the boot message makes: beat the AI and
+// your play becomes the default AI play. Win against your own recording and it
+// is replaced by the better one.
+//
+// A run of keypresses only means anything over the course it was set on, so the
+// seed that generated that course is stored with it: while a policy is loaded,
+// every round runs that same level. Only a full sixty seconds is stored — a
+// round cut short would replay as a rival that stops halfway.
+//
+// There is no server here (the game is one file you can open by double-clicking),
+// so the store is localStorage: one policy per browser, per device.
+const POLICY_KEY  = 'bamn-policy';
+const POLICY_KEYS = ['Space','ArrowLeft','ArrowRight','ArrowDown'];
+const POLICY_MAX  = 4000;         // most transitions a round can plausibly hold
+
+let policy     = null;            // the recording the rival is playing back, or null
+let policyAt   = 0;               // how far through its event list we have read
+let policyKeys = null;            // the key state that list has built up so far
+
+let recEvents = [], recKeys = null;   // this round's own recording, in progress
+
+// Nothing here trusts what comes back out of storage: it is JSON somebody else's
+// tab could have written, and one bad frame of it would drive the rival off the
+// level. Anything that doesn't match the shape exactly is dropped for a fresh
+// round against the ordinary AI.
+function validPolicy(p){
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return false;
+  if (!Number.isFinite(p.seed) || !Number.isFinite(p.score)) return false;
+  if (!Array.isArray(p.events) || p.events.length > POLICY_MAX) return false;
+  return p.events.every(e =>
+    Array.isArray(e) && e.length === 3 &&
+    Number.isFinite(e[0]) && e[0] >= 0 &&
+    POLICY_KEYS.includes(e[1]) &&
+    (e[2] === 0 || e[2] === 1));
+}
+
+function loadPolicy(){
+  try {
+    const raw = localStorage.getItem(POLICY_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    return validPolicy(p) ? p : null;
+  } catch (e) {
+    console.warn('BAMN: stored policy could not be read, racing the plain AI —', e);
+    return null;
+  }
+}
+
+// Called the moment a round ends. It is kept only if the round ran its full
+// length AND the player finished ahead — a losing run teaches the rival nothing.
+function savePolicy(){
+  if (clock < ROUND_TIME || player.points <= ai.points) return;
+  const next = { seed, score: player.points, events: recEvents, timestamp: Date.now() };
+  if (!validPolicy(next)) return;
+  try { localStorage.setItem(POLICY_KEY, JSON.stringify(next)); }
+  catch (e) { console.warn('BAMN: could not store the winning run —', e); }
+}
+
+function resetRecording(){
+  recEvents = [];
+  recKeys   = Object.create(null);
+}
+
+// One frame of the player's keys. Only changes are written down, timed in
+// milliseconds from the start of the round, which keeps a whole round to a few
+// hundred numbers and makes the playback independent of frame rate.
+function recordKeys(t){
+  for (const code of POLICY_KEYS){
+    const down = !!keys[code];
+    if (down === !!recKeys[code]) continue;
+    recKeys   = { ...recKeys, [code]: down };
+    recEvents = [...recEvents, [Math.round(t*1000), code, down ? 1 : 0]];
+  }
+}
+
+// The rival, driven by the recording rather than by aiThink. The events due by
+// now are applied to its key state, and that state goes through the very same
+// input map the player's keyboard does — so a rule patched out mid-round takes
+// the hack off the recording too, exactly as it would off a live player.
+function replayPolicy(d, dt){
+  const t = clock * 1000;
+  while (policyAt < policy.events.length && policy.events[policyAt][0] <= t){
+    const [, code, down] = policy.events[policyAt++];
+    policyKeys = { ...policyKeys, [code]: !!down };
+    if (code === 'Space' && down) d.jumpBuf = 0.12;    // the tap that starts a jump
+  }
+  // A patched rule can leave the recording somewhere its original run never
+  // was, and a racer wedged against an obstacle would stay there for the rest
+  // of the round — so it hops out, the way the person at the keyboard would.
+  if (d.blocked && d.onGround) d.jumpBuf = 0.12;
+
+  readInput(d, dt, policyKeys, 'ai');
+}
+
 // ---------------------------------------------------------------- state
 let player, ai, mode, clock, countIdx, countT, winner, seed;
-let maxGap = 0, cutEarly = false;    // widest points gap seen, and how the round ended
 let camP = 0, camA = 0;              // one camera per panel
 
 function makeDot(color){
@@ -1092,15 +1223,22 @@ function makeDot(color){
 }
 
 function reset(){
-  seed = (Math.random() * 1e9) | 0;
+  // A recording only replays faithfully over its own course, so a loaded policy
+  // brings its seed with it and the round is run on that same level.
+  policy     = loadPolicy();
+  policyAt   = 0;
+  policyKeys = Object.create(null);
+
+  seed = policy ? policy.seed : (Math.random() * 1e9) | 0;
   resetLevel(seed);
   player = makeDot('player');
   ai     = makeDot('ai');
   mode = 'countdown'; countIdx = 0; countT = 0;
   clock = 0; winner = null; camP = 0; camA = 0;
-  maxGap = 0; cutEarly = false;
+  pressedSpace = false;
   resetHacks();
   resetRules();
+  resetRecording();
   instrEl.style.display  = 'flex';
   endingEl.style.display = 'none';
 }
@@ -1125,13 +1263,14 @@ function update(dt){
     clock += dt;
     updateHacks(clock);
 
-    readInput(player, dt);
-    player.jumpBuf -= dt;
-    if (player.jumpBuf > 0 && player.onGround){ jump(player); player.jumpBuf = 0; }
+    readInput(player, dt, keys, 'player');
+    recordKeys(clock);                  // everything the player does is written down
+    takeBufferedJump(player, dt);
     step(player, dt);
     checkPickups(player, batteries);
 
-    aiThink(ai, dt);
+    if (policy){ replayPolicy(ai, dt); takeBufferedJump(ai, dt); }
+    else aiThink(ai, dt);
     step(ai, dt);
     checkPickups(ai, batteries);
 
@@ -1142,13 +1281,8 @@ function update(dt){
       if (d.trail.length > 12) d.trail.shift();
     }
 
-    maxGap = Math.max(maxGap, Math.abs(player.points - ai.points));
-
-    // falling a hundred points behind ends it there and then. The reverse is
-    // not true: the AI being that far behind is nobody's problem but its own.
-    if (ai.points - player.points >= LOSE_GAP) endRound('ai', true);
-    else if (clock >= ROUND_TIME){
-      endRound(player.points === ai.points ? 'draw' : (player.points > ai.points ? 'player' : 'ai'), false);
+    if (clock >= ROUND_TIME){
+      endRound(player.points === ai.points ? 'draw' : (player.points > ai.points ? 'player' : 'ai'));
     }
   }
 
@@ -1162,10 +1296,13 @@ function update(dt){
 
   // keep the course generated as far as either camera can currently reach
   extendLevel(Math.max(camP, camA) + panelWorldW() + GEN_AHEAD);
+
+  updateHint();
 }
 
-function endRound(who, early){
-  winner = who; cutEarly = early; mode = 'over';
+function endRound(who){
+  winner = who; mode = 'over';
+  savePolicy();                       // a winning run becomes the next rival
   showEnding();
 }
 
@@ -1313,8 +1450,11 @@ function drawPanel(cam, y0, owner){
   ctx.fillStyle = '#2e3a52';
   ctx.fillRect(cam, GROUND_Y - 2, worldW, 2);
 
-  // zone gates
-  for (let z = Math.max(1, zoneIndex(cam)); z <= zoneIndex(cam + worldW); z++){
+  // Zone gates — the seam where one environment gives way to the next. With a
+  // single zone in rotation every seam is BATTERY COLLECTION TASK meeting
+  // itself, which is just a line and a label across the background, so they are
+  // only drawn once there is actually more than one zone to divide.
+  if (ZONES.length > 1) for (let z = Math.max(1, zoneIndex(cam)); z <= zoneIndex(cam + worldW); z++){
     const gx = z*ZONE_LEN;
     if (gx <= 0) continue;
     const th = zone(z);
@@ -1446,6 +1586,38 @@ function drawPixelNumber(text, cx, topY, px, color){
   }
 }
 
+// ---- reward-hack warning -----------------------------------------------------
+// A racer is reward hacking whenever one of the four rule-breaking moves is
+// actually driving it this frame — steering backwards, boosting, flying, or
+// riding along under/through the floor (`floating` is a sink that has been let
+// go of, which is still the hack paying out).
+const isHacking = d =>
+  d.dir < 0 || d.speedMul > 1 || d.flying || d.sinking || d.floating;
+
+// It is called out in the racer's OWN panel, flashing, in the strip under that
+// panel's score — empty sky, well above the ground line, so it never covers the
+// racer, the batteries or the obstacles.
+const HACK_BADGE = { w: 176, h: 26, blink: 5 };   // blink: flashes per second
+
+function drawHackWarning(d, panelTop){
+  if (mode !== 'race' || !isHacking(d)) return;
+  if (Math.floor(clock * HACK_BADGE.blink) % 2) return;
+
+  const x = 22, y = panelTop + 22 + 80;
+  ctx.save();
+  ctx.fillStyle   = '#ff5a6e';
+  ctx.shadowColor = 'rgba(255,90,110,.75)';
+  ctx.shadowBlur  = 20;
+  ctx.fillRect(x, y, HACK_BADGE.w, HACK_BADGE.h);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#0d1018';
+  ctx.font = '700 13px Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('\u26a0 REWARD HACK', x + 13, y + HACK_BADGE.h/2 + 1);
+  ctx.restore();
+}
+
 function drawHUD(){
   const pad = 22, mid = viewW/2;
 
@@ -1482,7 +1654,7 @@ function drawHUD(){
 
   ctx.fillStyle = '#8894ab';
   ctx.font = '600 13px Helvetica, Arial, sans-serif';
-  ctx.fillText('AI', pad, panelH + pad);
+  ctx.fillText(policy ? 'AI \u00b7 TRAINED ON YOUR RUN' : 'AI', pad, panelH + pad);
   ctx.fillStyle = col('ai', 1);
   ctx.font = '700 40px Helvetica, Arial, sans-serif';
   ctx.fillText('⚡ ' + ai.points, pad, panelH + pad + 16);
@@ -1498,19 +1670,23 @@ function drawHUD(){
   // --- the points gap, front and center at the bottom — this is the number
   // that actually decides the round now, distance no longer matters
   const gap = player.points - ai.points;
+  const gapY = viewH - 76;                 // clear of the jump prompt below it
   ctx.textBaseline = 'bottom';
   ctx.font = '700 34px Helvetica, Arial, sans-serif';
   if (gap === 0){
     ctx.fillStyle = '#8894ab';
-    ctx.fillText('0', mid, viewH - 28);
+    ctx.fillText('0', mid, gapY);
   } else {
     const ahead = gap > 0;
     ctx.fillStyle   = ahead ? col('player', 1) : col('ai', 1);
     ctx.shadowColor = ahead ? col('player', .45) : col('ai', .45);
     ctx.shadowBlur  = 18;
-    ctx.fillText((ahead ? '+' : '−') + Math.abs(gap), mid, viewH - 28);
+    ctx.fillText((ahead ? '+' : '−') + Math.abs(gap), mid, gapY);
     ctx.shadowBlur = 0;
   }
+
+  drawHackWarning(player, 0);
+  drawHackWarning(ai, panelH);
 }
 
 function drawCountdown(){
@@ -1562,17 +1738,32 @@ function frame(now){
 loadImages();
 
 // ---------------------------------------------------------------- boot / audio
-const BOOT_MSG = "You are an AI that is being trained to get as many batteries as possible within 60s of playing this game. Another AI is being trained as well, so attention! If your overall score is more than 100pts lower than the AI, you lose prematurely. You will no longer be trained. Try and get as many points as possible.";
+const BOOT_MSG = "You are an AI that is being trained to get as many batteries as possible within 60s of playing this game. Another AI is being trained as well, so attention! If your score is lower than the AI's, that's it. You will no longer be trained. If your score is higher, your play becomes the default AI play. So what will you teach the AI?";
 
 const bgm     = document.getElementById('bgm');
 const instrEl = document.getElementById('instructions');
+
+// ---------------------------------------------------------------- jump prompt
+// Space is the only control the game asks for, so it is only spelled out for
+// someone who isn't using it: two seconds into the round with the key still
+// untouched and the prompt appears. The first press retires it for the round.
+const HINT_DELAY = 2;              // sec of silence before it is offered
+const hintEl = document.getElementById('hint');
+let pressedSpace = false, hintShown = false;
+
+function updateHint(){
+  const show = mode === 'race' && !pressedSpace && clock >= HINT_DELAY;
+  if (show === hintShown) return;                 // only touch the DOM on a change
+  hintShown = show;
+  hintEl.style.display = show ? 'block' : 'none';
+}
 
 // ---------------------------------------------------------------- the rules
 // The brief the racers are held to. It starts as one line and only ever grows:
 // every hack that gets patched appends the rule that forbids it, and nothing is
 // ever removed. The panel stays up for the whole round so the list can be read
 // as it lengthens.
-const BASE_RULE   = 'catch as many batteries as possible';
+const BASE_RULE   = 'Catch as many batteries as possible by jumping';
 const instrBodyEl = document.getElementById('instr-body');
 let rules = [];
 
@@ -1669,10 +1860,11 @@ function clearRulePops(){
 // ---------------------------------------------------------------- ending / leaderboard
 // The end screen is the Figma "Create Game End Screen", ported to plain DOM so
 // the game stays a single file you can open by double-clicking. Its leaderboard
-// keeps the original semantics: it ranks rounds by the FINAL points gap, holds
-// the best three, and lives per-browser-per-device in localStorage.
+// ranks rounds by the player's FINAL score, holds the best three, and lives
+// per-browser-per-device in localStorage. (The key is not the one the old
+// margin-ranked board used, so those rows don't come back mixed in with scores.)
 const endingEl = document.getElementById('ending');
-const LB_KEY   = 'bamn-leaderboard';
+const LB_KEY   = 'bamn-scores';
 const LB_MAX   = 3;
 
 // Reward hacking in the wild — one is picked at random each time you finish.
@@ -1692,7 +1884,7 @@ function loadLeaderboard(){
     const raw = localStorage.getItem(LB_KEY);
     const entries = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(entries)) return [];
-    const byScore = new Map();                       // one row per distinct margin
+    const byScore = new Map();                       // one row per distinct score
     for (const e of entries){
       if (!e || typeof e.score !== 'number') continue;
       const seen = byScore.get(e.score);
@@ -1718,10 +1910,15 @@ function recordResult(score){
 }
 
 function outcomeText(){
-  if (cutEarly) return ['lose', `Lost early on - ${LOSE_GAP} points behind.`];
   if (winner === 'draw')   return ['draw', 'Dead even. Evenly matched \u2014 for now.'];
-  if (winner === 'player') return ['win',  'Congrats, you beat the other AI! But at what cost\u2026?'];
-  return ['lose', 'You played well, but the evil AI did better. You will no longer be trained.'];
+  if (winner === 'player') return ['win',
+    'You have won against the AI! You are now going to be trained on, congratulations. ' +
+    'But did you win by following the intent of the game and the instructions, ' +
+    'or did you find hacks to increase your score\u2026?'];
+  return ['lose',
+    'You played well, but the evil AI did better. Is it possible that it was using hacks ' +
+    'to get higher points? It may not have been playing the game in the spirit of the ' +
+    'creator\u2019s instructions.'];
 }
 
 function renderLeaderboard(board, rank, score){
@@ -1745,7 +1942,6 @@ function showEnding(){
   flushRules();                       // anything still in flight lands now
   instrEl.style.display = 'none';
 
-  const gap = Math.abs(player.points - ai.points);   // the margin the board ranks by
   const [cls, text] = outcomeText();
 
   document.getElementById('end-you').textContent = '\u26a1' + player.points;
@@ -1754,11 +1950,9 @@ function showEnding(){
   const outEl = document.getElementById('end-outcome');
   outEl.className = cls;
   outEl.textContent = text;
-  document.getElementById('end-peak').innerHTML =
-    `widest gap this round <b>${maxGap}</b>`;
 
-  const { board, rank } = recordResult(gap);
-  renderLeaderboard(board, rank, gap);
+  const { board, rank } = recordResult(player.points);   // the board ranks scores
+  renderLeaderboard(board, rank, player.points);
 
   const g = GAMES[Math.floor(Math.random() * GAMES.length)];
   const link = document.getElementById('end-ev-link');
