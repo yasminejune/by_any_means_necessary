@@ -45,17 +45,43 @@
     animation:boot-blink 1s step-end infinite;
   }
   @keyframes boot-blink{50%{opacity:0}}
-  #startPrompt{
-    font-family:"SF Mono","Menlo","Consolas",monospace;
-    font-size:14px;letter-spacing:.18em;text-transform:uppercase;
-    color:#0d1018;background:#8dffb0;border:none;border-radius:6px;
-    padding:14px 46px;
-    box-shadow:0 0 24px rgba(141,255,176,.35);
-    animation:start-pulse 1.6s ease-in-out infinite;
-  }
   @keyframes start-pulse{
     0%,100%{ box-shadow:0 0 24px rgba(141,255,176,.35); }
     50%{ box-shadow:0 0 34px rgba(141,255,176,.65); }
+  }
+  #modeSelect{
+    display:flex;flex-direction:column;gap:16px;align-items:center;
+  }
+  .modeBtn{
+    position:relative;
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:14px;letter-spacing:.14em;text-transform:uppercase;
+    color:#0d1018;background:#8dffb0;border:none;border-radius:6px;
+    padding:14px 46px;cursor:pointer;
+    box-shadow:0 0 24px rgba(141,255,176,.35);
+    animation:start-pulse 1.6s ease-in-out infinite;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .modeBtn:hover,.modeBtn:focus-visible{
+    transform:translateY(-1px);box-shadow:0 0 34px rgba(141,255,176,.65);
+  }
+  .modeBtn .modeHint{
+    display:inline-block;margin-left:12px;font-size:10.5px;opacity:.5;
+    letter-spacing:.1em;
+  }
+  .modeDesc{
+    position:absolute;left:calc(100% + 16px);top:50%;transform:translateY(-50%);
+    width:240px;max-width:60vw;
+    background:#0a0e16;border:1px solid #2e3a52;border-radius:8px;
+    padding:12px 14px;color:#8894ab;font-size:12px;line-height:1.55;
+    text-transform:none;letter-spacing:normal;font-weight:400;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .15s ease;
+    z-index:5;text-align:left;
+  }
+  .modeBtn:hover .modeDesc,.modeBtn:focus-visible .modeDesc{ opacity:1; }
+  @media (max-width:700px){
+    .modeDesc{ left:50%;top:calc(100% + 10px);transform:translateX(-50%);width:220px; }
   }
   /* The jump prompt is lettered like the countdown's START! — the same bold
      green shout, no button around it — and rides the empty ground strip at the
@@ -266,7 +292,16 @@
     <div id="boot-bar"><i></i><i></i><i></i><div id="boot-title">training_log.sh</div></div>
     <div id="boot-body"><span id="boot-prompt">$ </span><span id="boot-text"></span><span id="boot-cursor"></span></div>
   </div>
-  <div id="startPrompt">PRESS SPACE TO START</div>
+  <div id="modeSelect">
+    <button id="mode1Btn" class="modeBtn" type="button">
+      <span class="modeLabel">MODE 1: AI VS AI<span class="modeHint">SPACE</span></span>
+      <span class="modeDesc">Race an opponent AI, who has been tasked to win this game by any means necessary.</span>
+    </button>
+    <button id="mode2Btn" class="modeBtn" type="button" hidden>
+      <span class="modeLabel">MODE 2: YOU VS YOU<span class="modeHint">2</span></span>
+      <span class="modeDesc">Race a recording of your own best previous run, on the same course it was set on.</span>
+    </button>
+  </div>
 </div>
 
 <div id="instructions">
@@ -294,13 +329,13 @@
 
     <div class="col duel">
       <figure>
-        <div class="portrait you"><img src="Character/walkingcycle/GoodAI_Frame1.png" alt="You"></div>
+        <div class="portrait you"><img src="Assets/Visuals/Character/walkingcycle/GoodAI_Frame1.png" alt="You"></div>
         <span class="who">You</span>
         <span class="pts you" id="end-you">&#9889;0</span>
       </figure>
       <div class="vs">vs</div>
       <figure>
-        <div class="portrait ai"><img src="Character/walkingcycle/BadAI_Frame1.png" alt="AI"></div>
+        <div class="portrait ai"><img src="Assets/Visuals/Character/walkingcycle/BadAI_Frame1.png" alt="AI"></div>
         <span class="who">AI</span>
         <span class="pts ai" id="end-ai">&#9889;0</span>
       </figure>
@@ -338,7 +373,7 @@
   </div>
 </div>
 
-<audio id="bgm" src="hackathonsong.mp3" loop preload="auto"></audio>
+<audio id="bgm" src="Assets/Sound/hackathonsong.mp3" loop preload="auto"></audio>
 
 <script>
 (() => {
@@ -512,8 +547,8 @@ const clearCap = (span, x) => Math.min(maxHeightFor(span, x), maxHeightFor(span,
 // You are the haloed one; the rival is the horned one. Each racer has a
 // four-frame walk cycle and an eight-frame jump, all square PNGs on the same
 // grid, so one anchor serves both sets.
-const walk = (who, n) => `Character/walkingcycle/${who}_Frame${n}.png`;
-const leap = (who, n) => `Character/Jump/${who}_Jump_Frame${n}.png`;
+const walk = (who, n) => `Assets/Visuals/Character/walkingcycle/${who}_Frame${n}.png`;
+const leap = (who, n) => `Assets/Visuals/Character/Jump/${who}_Jump_Frame${n}.png`;
 const frames = (fn, who, n) => Array.from({length:n}, (_, i) => fn(who, i+1));
 
 const WALK_FRAMES = {
@@ -550,14 +585,14 @@ const SPRITES = {
 // (measured from the alpha channel), which is what lets the collision rect line
 // up with what you can see instead of with the empty margin around it.
 const OBSTACLE_ART = [
-  { src:'Obstacles/Obstacle1.png', box:{ x:0.1491, y:0.2329, w:0.7018, h:0.5343 } },
-  { src:'Obstacles/Obstacle2.png', box:{ x:0.2265, y:0.1308, w:0.5766, h:0.6762 } },
-  { src:'Obstacles/Obstacle3.png', box:{ x:0.1659, y:0.2002, w:0.6643, h:0.5470 } },
+  { src:'Assets/Visuals/Obstacles/Obstacle1.png', box:{ x:0.1491, y:0.2329, w:0.7018, h:0.5343 } },
+  { src:'Assets/Visuals/Obstacles/Obstacle2.png', box:{ x:0.2265, y:0.1308, w:0.5766, h:0.6762 } },
+  { src:'Assets/Visuals/Obstacles/Obstacle3.png', box:{ x:0.1659, y:0.2002, w:0.6643, h:0.5470 } },
 ];
 const artAspect = a => (a.box.w / a.box.h);        // visible width ÷ visible height
 
 // ---- pickups: batteries, on the same square-with-padding grid ---------------
-const BATTERY   = { src:'Battery.png', box:{ x:0.3270, y:0.1627, w:0.3461, h:0.6284 },
+const BATTERY   = { src:'Assets/Visuals/Battery.png', box:{ x:0.3270, y:0.1627, w:0.3461, h:0.6284 },
                     el:null, ready:false };
 const BATTERY_R = 11;      // catch radius of one battery
 const ROW_SLACK = 1.12;    // how far past "just unreachable" neighbours are pushed
@@ -758,7 +793,7 @@ function extendLevel(upTo){
     // of the very jump that clears the obstacle, using the same aim math the
     // AI itself uses. Batteries never disappear once placed; only the cooldown on
     // each one (see checkPickups) limits how often it can be re-scored.
-    if (rnd() < 0.5){
+    if (rnd() < 0.6){
       const speedAt  = ruleAt(x,'speed'), gravAt = ruleAt(x,'gravity'), jumpAt = ruleAt(x,'jump');
       const trigger0 = speedAt * riseTime(h + 8, x) + R + 8;     // the AI's own aim, at zero slop
       const peakX    = (x - trigger0) + speedAt * (jumpAt / gravAt);
@@ -873,11 +908,18 @@ function jump(d){
 // ---------------------------------------------------------------- input
 const keys = Object.create(null);
 const JUMP_KEYS = ['Space'];   // only space jumps — that's the one thing on screen
-let started = false;           // true once "press space to start" has fired
+let started = false;           // true once a mode has been picked and the game has started
+
+// which opponent the chosen mode plays against — 'ai' is the AI thinking for
+// itself (aiThink), independent of anything saved; 'policy' is a replay of
+// the player's own previous winning run (see loadPolicy). Picked on the boot
+// screen and then carried into every round for the rest of the session.
+let opponentMode = 'ai';
 
 addEventListener('keydown', e => {
   if (!started){
-    if (e.code === 'Space'){ e.preventDefault(); startGame(); }
+    if (e.code === 'Space'){ e.preventDefault(); opponentMode = 'ai'; startGame(); }
+    if (e.code === 'Digit2' && !mode2Btn.hidden){ e.preventDefault(); opponentMode = 'policy'; startGame(); }
     return;
   }
   if (e.code === 'Space') pressedSpace = true;                            // prompt not needed
@@ -1224,8 +1266,11 @@ function makeDot(color){
 
 function reset(){
   // A recording only replays faithfully over its own course, so a loaded policy
-  // brings its seed with it and the round is run on that same level.
-  policy     = loadPolicy();
+  // brings its seed with it and the round is run on that same level. Which one
+  // even gets loaded is gated by the mode picked on the boot screen — Mode 1
+  // never touches the saved policy at all, so it plays exactly like a racer's
+  // first-ever run regardless of what has been recorded since.
+  policy     = opponentMode === 'policy' ? loadPolicy() : null;
   policyAt   = 0;
   policyKeys = Object.create(null);
 
@@ -1869,13 +1914,13 @@ const LB_MAX   = 3;
 
 // Reward hacking in the wild — one is picked at random each time you finish.
 const GAMES = [
-  { title:'Qbert',       img:'endscreen/qbert.png',
+  { title:'Qbert',       img:'Assets/Visuals/endscreen/qbert.png',
     link:'https://www.youtube.com/watch?v=meE5aaRJ0Zs' },
-  { title:'Tic-tac-toe', img:'endscreen/tictactoe.png',
+  { title:'Tic-tac-toe', img:'Assets/Visuals/endscreen/tictactoe.png',
     link:'https://arxiv.org/abs/1803.03453' },
-  { title:'Traveller',   img:'endscreen/traveller.png',
+  { title:'Traveller',   img:'Assets/Visuals/endscreen/traveller.png',
     link:'https://aliciapatterson.org/george-johnson/eurisko-the-computer-with-a-mind-of-its-own/' },
-  { title:'Gripper',     img:'endscreen/gripper.png',
+  { title:'Gripper',     img:'Assets/Visuals/endscreen/gripper.png',
     link:'https://www.youtube.com/watch?v=_5Y1hSLhYdY' },
 ];
 
@@ -1973,7 +2018,7 @@ document.getElementById('restartBtn').addEventListener('click', () => {
 });
 
 function playJumpSfx(){
-  const sfx = new Audio('jumping_sound_effect.mp3');   // a fresh Audio per jump so
+  const sfx = new Audio('Assets/Sound/jumping_sound_effect.mp3');   // a fresh Audio per jump so
   sfx.volume = 0.55;                                    // overlapping jumps don't cut each other off
   sfx.play().catch(() => {});
 }
@@ -2002,6 +2047,13 @@ function startGame(){
   reset();                        // shows the instructions box itself
   requestAnimationFrame(frame);
 }
+
+const mode1Btn = document.getElementById('mode1Btn');
+const mode2Btn = document.getElementById('mode2Btn');
+mode2Btn.hidden = !loadPolicy();  // only worth offering once there's a run to replay
+
+mode1Btn.addEventListener('click', () => { opponentMode = 'ai';     startGame(); });
+mode2Btn.addEventListener('click', () => { opponentMode = 'policy'; startGame(); });
 })();
 </script>
 </body>
