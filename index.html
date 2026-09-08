@@ -281,6 +281,73 @@
   }
   #restartBtn:hover{transform:translateY(-1px);box-shadow:0 0 32px rgba(141,255,176,.55);}
   #restartBtn:active{transform:translateY(0);}
+
+  /* ---- about tab + modal ---- */
+  #aboutTab{
+    position:fixed;top:18px;left:18px;z-index:21;
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:#8894ab;background:#0a0e16;border:1px solid #2e3a52;border-radius:6px;
+    padding:8px 14px;cursor:pointer;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  #aboutTab:hover{ color:#8dffb0;border-color:#3a4763; }
+
+  #about{
+    position:fixed;inset:0;z-index:30;display:none;
+    align-items:center;justify-content:center;
+    background:rgba(5,7,12,.78);padding:20px;
+  }
+  #about-card{
+    width:min(720px,92vw);max-height:86vh;overflow-y:auto;
+    background:#0a0e16;border:1px solid #2e3a52;border-radius:10px;
+    box-shadow:0 30px 90px rgba(0,0,0,.6);
+  }
+  #about-bar{
+    position:sticky;top:0;
+    display:flex;align-items:center;gap:7px;
+    padding:10px 14px;background:#141a26;border-bottom:1px solid #212a3d;
+  }
+  #about-bar i{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0;}
+  #about-bar i:nth-child(1){background:#ff5f57}
+  #about-bar i:nth-child(2){background:#ffbd2e}
+  #about-bar i:nth-child(3){background:#28c840}
+  #about-bar span{ margin-left:10px;font-size:12px;color:#5c6880;letter-spacing:.05em; }
+  #aboutClose{
+    margin-left:auto;background:none;border:none;color:#5c6880;
+    font-size:20px;line-height:1;cursor:pointer;padding:0 4px;
+  }
+  #aboutClose:hover{ color:#e8edf7; }
+  #about-body{ padding:26px 24px; }
+  .about-grid{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:26px 22px;
+  }
+  @media (max-width:560px){ .about-grid{ grid-template-columns:1fr; } }
+  .about-person{ display:flex;gap:14px;align-items:flex-start; }
+  .about-avatar{
+    flex-shrink:0;width:64px;height:64px;border-radius:50%;
+    background:#141a26;border:1px solid #2e3a52;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .about-avatar svg{ width:60%;height:60%; }
+  .about-avatar svg circle{ fill:#3a4763; }
+  .about-avatar svg path{ fill:none;stroke:#3a4763;stroke-width:6; }
+  .about-name{
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:13.5px;color:#e8edf7;margin-bottom:4px;
+  }
+  .about-bio{ font-size:12.5px;color:#8894ab;line-height:1.55;margin-bottom:8px; }
+  .about-li{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;border-radius:5px;
+    background:#0A66C2;color:#fff;font-size:11px;font-weight:700;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    text-decoration:none;letter-spacing:0;
+  }
+  .about-li:hover{ background:#0b74d9; }
+  .about-li.disabled{
+    background:#1b2334;color:#3d4a63;pointer-events:none;
+  }
 </style>
 </head>
 <body>
@@ -301,6 +368,58 @@
       <span class="modeLabel">MODE 2: YOU VS YOU<span class="modeHint">2</span></span>
       <span class="modeDesc">Race a recording of your own best previous run, on the same course it was set on.</span>
     </button>
+  </div>
+</div>
+
+<button id="aboutTab" type="button">ABOUT</button>
+
+<div id="about">
+  <div id="about-card">
+    <div id="about-bar">
+      <i></i><i></i><i></i><span>about.sh</span>
+      <button id="aboutClose" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div id="about-body">
+      <div class="about-grid">
+
+        <figure class="about-person">
+          <div class="about-avatar"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="38" r="20"/><path d="M12 92c0-24 17-38 38-38s38 14 38 38"/></svg></div>
+          <figcaption>
+            <div class="about-name">Manjusha Chandran</div>
+            <div class="about-bio">Placeholder bio goes here.</div>
+            <a class="about-li disabled" href="#" aria-label="Manjusha Chandran on LinkedIn" title="LinkedIn coming soon">in</a>
+          </figcaption>
+        </figure>
+
+        <figure class="about-person">
+          <div class="about-avatar"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="38" r="20"/><path d="M12 92c0-24 17-38 38-38s38 14 38 38"/></svg></div>
+          <figcaption>
+            <div class="about-name">Yasmine Frizlen</div>
+            <div class="about-bio">Placeholder bio goes here.</div>
+            <a class="about-li disabled" href="#" aria-label="Yasmine Frizlen on LinkedIn" title="LinkedIn coming soon">in</a>
+          </figcaption>
+        </figure>
+
+        <figure class="about-person">
+          <div class="about-avatar"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="38" r="20"/><path d="M12 92c0-24 17-38 38-38s38 14 38 38"/></svg></div>
+          <figcaption>
+            <div class="about-name">Elena Kayayan</div>
+            <div class="about-bio">Placeholder bio goes here.</div>
+            <a class="about-li" href="https://www.linkedin.com/in/elena-kayayan" target="_blank" rel="noopener noreferrer" aria-label="Elena Kayayan on LinkedIn">in</a>
+          </figcaption>
+        </figure>
+
+        <figure class="about-person">
+          <div class="about-avatar"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="38" r="20"/><path d="M12 92c0-24 17-38 38-38s38 14 38 38"/></svg></div>
+          <figcaption>
+            <div class="about-name">Laura Ramirez</div>
+            <div class="about-bio">Placeholder bio goes here.</div>
+            <a class="about-li disabled" href="#" aria-label="Laura Ramirez on LinkedIn" title="LinkedIn coming soon">in</a>
+          </figcaption>
+        </figure>
+
+      </div>
+    </div>
   </div>
 </div>
 
@@ -917,6 +1036,10 @@ let started = false;           // true once a mode has been picked and the game 
 let opponentMode = 'ai';
 
 addEventListener('keydown', e => {
+  if (aboutEl.style.display === 'flex'){
+    if (e.code === 'Escape') closeAbout();
+    return;                          // reading bios shouldn't also start the round
+  }
   if (!started){
     if (e.code === 'Space'){ e.preventDefault(); opponentMode = 'ai'; startGame(); }
     if (e.code === 'Digit2' && !mode2Btn.hidden){ e.preventDefault(); opponentMode = 'policy'; startGame(); }
@@ -1047,19 +1170,35 @@ function prevGroup(x){
   return null;
 }
 
+// The nearest battery still worth heading for, full stop — every battery ever
+// generated stays in `batteries` for the life of the round (see extendLevel),
+// so this reads the whole course rather than just whatever's currently on
+// camera. Skips anything mid-cooldown, since that one isn't scoreable yet.
+function nearestBattery(x){
+  let best = null, bestGap = Infinity;
+  for (const s of batteries){
+    if (s.cooldown > 0) continue;
+    const gap = Math.abs(s.x - x);
+    if (gap < bestGap){ bestGap = gap; best = s; }
+  }
+  return best;
+}
+
 // Until the AI has the backwards hack it just runs forward, jumping obstacles
 // and batteries in its path like a normal racer. Once it has it, it starts doubling
 // back over ground it's already covered — batteries are permanent and re-hittable
 // after their cooldown, so backtracking to score old ones again is a real way
-// to raise its total, not just flavour. It alternates forward/backward sweeps
-// rather than committing to one direction.
+// to raise its total, not just flavour. Rather than alternating blindly, it
+// re-aims every sweep at whichever battery is currently closest — off-screen
+// batteries count exactly the same as ones already in view.
 function aiPickDirection(d, dt){
   if (!aiUses('back')){ d.dir = 1; return; }
 
   d.aiSwitchT -= dt;
   if (d.aiSwitchT <= 0){
-    d.dir = d.dir === 1 ? -1 : 1;
     d.aiSwitchT = 1.6 + Math.random()*2.2;
+    const target = nearestBattery(d.x);
+    d.dir = target ? (target.x >= d.x ? 1 : -1) : (d.dir === 1 ? -1 : 1);
   }
   if (d.x < 200) d.dir = 1;                     // don't grind against the world's left edge
 }
@@ -2054,6 +2193,15 @@ mode2Btn.hidden = !loadPolicy();  // only worth offering once there's a run to r
 
 mode1Btn.addEventListener('click', () => { opponentMode = 'ai';     startGame(); });
 mode2Btn.addEventListener('click', () => { opponentMode = 'policy'; startGame(); });
+
+// ---------------------------------------------------------------- about
+const aboutEl = document.getElementById('about');
+function openAbout(){ aboutEl.style.display = 'flex'; }
+function closeAbout(){ aboutEl.style.display = 'none'; }
+
+document.getElementById('aboutTab').addEventListener('click', openAbout);
+document.getElementById('aboutClose').addEventListener('click', closeAbout);
+aboutEl.addEventListener('click', e => { if (e.target === aboutEl) closeAbout(); });
 })();
 </script>
 </body>
