@@ -2191,6 +2191,8 @@ function outcomeText(){
     'You have won against the AI! You are now going to be trained on, congratulations. ' +
     'But did you win by following the intent of the game and the instructions, ' +
     'or did you find hacks to increase your score\u2026?'];
+  if (opponentMode === 'policy') return ['lose',
+    'You played well, but less well than previously. Want to try beating your high score?'];
   return ['lose',
     'You played well, but the evil AI did better. Is it possible that it was using hacks ' +
     'to get higher points? It may not have been playing the game in the spirit of the ' +
