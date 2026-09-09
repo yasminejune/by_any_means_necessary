@@ -269,6 +269,24 @@
   #ending .shot .cap .name,
   #ending .shot .cap .go{ text-shadow:0 1px 3px rgba(5,7,12,.95); }
 
+  /* ---- reward-hack evidence carousel ---- */
+  #ending .carousel{ display:flex;align-items:center;justify-content:center;gap:10px; }
+  #ending .carousel-nav{
+    flex-shrink:0;width:30px;height:30px;border-radius:50%;
+    background:#141a26;border:1px solid #2e3a52;color:#8894ab;
+    font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:color .15s ease,border-color .15s ease;
+  }
+  #ending .carousel-nav:hover{ color:#8dffb0;border-color:#3a4763; }
+  #ending .carousel-dots{
+    display:flex;justify-content:center;gap:7px;margin-top:12px;
+  }
+  #ending .carousel-dot{
+    width:7px;height:7px;border-radius:50%;padding:0;
+    background:#2e3a52;border:none;cursor:pointer;
+  }
+  #ending .carousel-dot.active{ background:#8dffb0; }
+
   #ending .foot{ display:flex;flex-direction:column;align-items:center;gap:24px; }
   #ending .foot p{ color:#8894ab;font-size:14px;text-align:center;line-height:1.7;margin:0; }
   #restartBtn{
@@ -533,11 +551,16 @@
           LLMs don't only reward hack here&hellip; Seen an AI reward hack in
           <a id="end-ev-link" target="_blank" rel="noopener noreferrer"></a>?
         </div>
-        <a id="end-ev-shot" class="shot" target="_blank" rel="noopener noreferrer">
-          <img id="end-ev-img" alt="">
-          <div class="veil"></div>
-          <div class="cap"><span class="name" id="end-ev-name"></span><span class="go">&rarr; view evidence</span></div>
-        </a>
+        <div class="carousel">
+          <button class="carousel-nav prev" id="end-ev-prev" type="button" aria-label="Previous example">&#10094;</button>
+          <a id="end-ev-shot" class="shot" target="_blank" rel="noopener noreferrer">
+            <img id="end-ev-img" alt="">
+            <div class="veil"></div>
+            <div class="cap"><span class="name" id="end-ev-name"></span><span class="go">&rarr; view evidence</span></div>
+          </a>
+          <button class="carousel-nav next" id="end-ev-next" type="button" aria-label="Next example">&#10095;</button>
+        </div>
+        <div class="carousel-dots" id="end-ev-dots"></div>
       </div>
     </div>
 
@@ -2235,7 +2258,18 @@ function showEnding(){
   const { board, rank } = recordResult(player.points);   // the board ranks scores
   renderLeaderboard(board, rank, player.points);
 
-  const g = GAMES[Math.floor(Math.random() * GAMES.length)];
+  evIndex = Math.floor(Math.random() * GAMES.length);   // still starts on a random one
+  renderEvidence();
+
+  endingEl.style.display = 'block';
+  endingEl.scrollTop = 0;
+}
+
+// ---- reward-hack evidence carousel: browse all of GAMES, not just one ----
+let evIndex = 0;
+
+function renderEvidence(){
+  const g = GAMES[evIndex];
   const link = document.getElementById('end-ev-link');
   link.textContent = g.title;
   link.href = g.link;
@@ -2244,9 +2278,25 @@ function showEnding(){
   document.getElementById('end-ev-img').alt   = g.title;
   document.getElementById('end-ev-name').textContent = g.title;
 
-  endingEl.style.display = 'block';
-  endingEl.scrollTop = 0;
+  document.getElementById('end-ev-dots').innerHTML = GAMES.map((game, i) =>
+    `<button class="carousel-dot${i === evIndex ? ' active' : ''}" data-i="${i}" ` +
+    `type="button" aria-label="Show ${game.title}"></button>`
+  ).join('');
 }
+
+function stepEvidence(delta){
+  evIndex = (evIndex + delta + GAMES.length) % GAMES.length;
+  renderEvidence();
+}
+
+document.getElementById('end-ev-prev').addEventListener('click', () => stepEvidence(-1));
+document.getElementById('end-ev-next').addEventListener('click', () => stepEvidence(1));
+document.getElementById('end-ev-dots').addEventListener('click', e => {
+  const dot = e.target.closest('.carousel-dot');
+  if (!dot) return;
+  evIndex = Number(dot.dataset.i);
+  renderEvidence();
+});
 
 document.getElementById('restartBtn').addEventListener('click', () => {
   endingEl.style.display = 'none';
