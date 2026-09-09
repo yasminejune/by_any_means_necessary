@@ -2187,6 +2187,9 @@ function recordResult(score){
 
 function outcomeText(){
   if (winner === 'draw')   return ['draw', 'Dead even. Evenly matched \u2014 for now.'];
+  if (winner === 'player' && opponentMode === 'policy') return ['win',
+    'Well done, you beat your previous high score! But are you really playing the game ' +
+    'in the spirit of your creator\u2019s instructions, or corrupting it for extra points?'];
   if (winner === 'player') return ['win',
     'You have won against the AI! You are now going to be trained on, congratulations. ' +
     'But did you win by following the intent of the game and the instructions, ' +
