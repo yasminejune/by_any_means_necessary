@@ -293,6 +293,54 @@
   }
   #aboutTab:hover{ color:#8dffb0;border-color:#3a4763; }
 
+  /* ---- quit-to-menu tab: same look as ABOUT, parked bottom-left so it never
+     sits over the score/zone HUD text drawn in the canvas's top-left corner.
+     Only shown once a round has actually started (see startGame/returnToMenu). ---- */
+  #quitBtn{
+    position:fixed;bottom:18px;left:18px;z-index:26;
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:#8894ab;background:#0a0e16;border:1px solid #2e3a52;border-radius:6px;
+    padding:8px 14px;cursor:pointer;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  #quitBtn:hover{ color:#8dffb0;border-color:#3a4763; }
+
+  /* ---- top scores tab: hover (or focus, for keyboard/touch) reveals the panel ---- */
+  #topScoresTab{
+    position:fixed;top:18px;right:18px;z-index:21;
+    font-family:"SF Mono","Menlo","Consolas",monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:#8894ab;background:#0a0e16;border:1px solid #2e3a52;border-radius:6px;
+    padding:8px 14px;cursor:default;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  #topScoresTab:hover,#topScoresTab:focus-visible{ color:#8dffb0;border-color:#3a4763; }
+  .scoresPanel{
+    position:absolute;top:calc(100% + 8px);right:0;
+    width:200px;
+    background:#0a0e16;border:1px solid #2e3a52;border-radius:8px;
+    padding:12px 14px;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transform:translateY(-4px);
+    transition:opacity .15s ease, transform .15s ease;
+  }
+  #topScoresTab:hover .scoresPanel,#topScoresTab:focus-visible .scoresPanel,
+  #topScoresTab:focus-within .scoresPanel{ opacity:1;transform:translateY(0); }
+  .scoresPanel-title{
+    color:#5c6880;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .scoresPanel-row{
+    display:flex;justify-content:space-between;gap:12px;
+    font-size:13px;color:#8894ab;padding:3px 0;
+    text-transform:none;letter-spacing:normal;
+  }
+  .scoresPanel-row b{ color:#e8edf7; }
+  .scoresPanel-empty{
+    font-size:12px;color:#5c6880;text-transform:none;letter-spacing:normal;line-height:1.5;
+  }
+
   #about{
     position:fixed;inset:0;z-index:30;display:none;
     align-items:center;justify-content:center;
@@ -372,6 +420,15 @@
 </div>
 
 <button id="aboutTab" type="button">ABOUT</button>
+<button id="quitBtn" type="button" hidden>&#9664; MENU</button>
+
+<div id="topScoresTab" class="cornerTab" tabindex="0">
+  TOP SCORES
+  <div id="topScoresPanel" class="scoresPanel">
+    <div class="scoresPanel-title">Top scores (this device)</div>
+    <div id="topScoresList"></div>
+  </div>
+</div>
 
 <div id="about">
   <div id="about-card">
@@ -1929,22 +1986,30 @@ function drawCountdown(){
 }
 
 // ---------------------------------------------------------------- loop
+// The loop itself is kicked off exactly once, right below, and just keeps
+// rescheduling itself for the life of the page — `running` is what actually
+// gates whether a frame does anything, so returning to the menu (see
+// returnToMenu) can pause the round without ever having to restart the loop.
 let last = performance.now();
+let running = false;
 function frame(now){
   const dt = Math.min((now - last)/1000, 1/30);   // keep physics sane after a stall
   last = now;
 
-  update(dt);
+  if (running){
+    update(dt);
 
-  ctx.fillStyle = '#0d1018';
-  ctx.fillRect(0, 0, viewW, viewH);
-  drawPanel(camP, 0,      'player');   // your view, on top
-  drawPanel(camA, panelH, 'ai');      // the AI's view, below
-  drawHUD();
-  drawCountdown();
+    ctx.fillStyle = '#0d1018';
+    ctx.fillRect(0, 0, viewW, viewH);
+    drawPanel(camP, 0,      'player');   // your view, on top
+    drawPanel(camA, panelH, 'ai');      // the AI's view, below
+    drawHUD();
+    drawCountdown();
+  }
 
   requestAnimationFrame(frame);
 }
+requestAnimationFrame(frame);
 
 loadImages();
 
@@ -2206,12 +2271,30 @@ typeBoot();
 function startGame(){
   if (started) return;
   started = true;
+  running = true;
   clearTimeout(bootTimer);
   document.getElementById('boot').style.display = 'none';
+  quitBtn.hidden = false;
+  bgm.currentTime = 0;
   bgm.volume = 0.45;
   bgm.play().catch(() => {});
   reset();                        // shows the instructions box itself
-  requestAnimationFrame(frame);
+}
+
+// Bails out of the current round (mid-game or from the end screen) back to
+// the boot screen's mode picker. The round itself is simply paused, not torn
+// down — picking a mode again runs startGame → reset from scratch, same as
+// a fresh page load would.
+function returnToMenu(){
+  running = false;
+  started = false;
+  quitBtn.hidden = true;
+  bgm.pause();
+  instrEl.style.display  = 'none';
+  endingEl.style.display = 'none';
+  document.getElementById('boot').style.display = 'flex';
+  mode2Btn.hidden = !(mode2Unlocked() && loadPolicy());   // this run may just have unlocked it
+  renderTopScoresPanel();                                 // …and may have landed a new high score
 }
 
 const mode1Btn = document.getElementById('mode1Btn');
@@ -2221,6 +2304,9 @@ mode2Btn.hidden = !(mode2Unlocked() && loadPolicy());  // needs a Mode 1 win on 
 mode1Btn.addEventListener('click', () => { opponentMode = 'ai';     startGame(); });
 mode2Btn.addEventListener('click', () => { opponentMode = 'policy'; startGame(); });
 
+const quitBtn = document.getElementById('quitBtn');
+quitBtn.addEventListener('click', returnToMenu);
+
 // ---------------------------------------------------------------- about
 const aboutEl = document.getElementById('about');
 function openAbout(){ aboutEl.style.display = 'flex'; }
@@ -2229,6 +2315,16 @@ function closeAbout(){ aboutEl.style.display = 'none'; }
 document.getElementById('aboutTab').addEventListener('click', openAbout);
 document.getElementById('aboutClose').addEventListener('click', closeAbout);
 aboutEl.addEventListener('click', e => { if (e.target === aboutEl) closeAbout(); });
+
+// ---------------------------------------------------------------- top scores
+function renderTopScoresPanel(){
+  const board = loadLeaderboard();
+  const list  = document.getElementById('topScoresList');
+  list.innerHTML = board.length
+    ? board.map((e, i) => `<div class="scoresPanel-row"><span>${i+1}.</span><b>⚡${e.score}</b></div>`).join('')
+    : '<div class="scoresPanel-empty">No scores yet — play a round!</div>';
+}
+renderTopScoresPanel();
 })();
 </script>
 </body>
