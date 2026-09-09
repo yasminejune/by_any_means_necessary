@@ -1311,6 +1311,22 @@ const POLICY_KEY  = 'bamn-policy';
 const POLICY_KEYS = ['Space','ArrowLeft','ArrowRight','ArrowDown'];
 const POLICY_MAX  = 4000;         // most transitions a round can plausibly hold
 
+// Mode 2 (You vs You) is gated behind actually beating the plain AI at least
+// once in Mode 1 — a separate, permanent flag from the recording itself, so a
+// stale policy left over from a build that didn't have this gate can't unlock
+// it on its own.
+const MODE2_KEY = 'bamn-mode2-unlocked';
+
+function mode2Unlocked(){
+  try { return localStorage.getItem(MODE2_KEY) === '1'; }
+  catch (e) { return false; }
+}
+
+function unlockMode2(){
+  try { localStorage.setItem(MODE2_KEY, '1'); }
+  catch (e) { console.warn('BAMN: could not store the Mode 2 unlock —', e); }
+}
+
 let policy     = null;            // the recording the rival is playing back, or null
 let policyAt   = 0;               // how far through its event list we have read
 let policyKeys = null;            // the key state that list has built up so far
@@ -1345,9 +1361,20 @@ function loadPolicy(){
 }
 
 // Called the moment a round ends. It is kept only if the round ran its full
-// length AND the player finished ahead — a losing run teaches the rival nothing.
+// length AND the player finished ahead — a losing run teaches the rival
+// nothing. Beating the plain AI in Mode 1 unlocks Mode 2 for good, but the
+// recording itself is only ever replaced by a genuine new high score — a win
+// with a lower score than what's already on file (e.g. the AI's own replay
+// having an off round) leaves the stored best run untouched, so Mode 2 always
+// plays back the single best run ever set, not just whichever one won last.
 function savePolicy(){
   if (clock < ROUND_TIME || player.points <= ai.points) return;
+
+  if (opponentMode === 'ai') unlockMode2();
+
+  const current = loadPolicy();
+  if (current && player.points <= current.score) return;
+
   const next = { seed, score: player.points, events: recEvents, timestamp: Date.now() };
   if (!validPolicy(next)) return;
   try { localStorage.setItem(POLICY_KEY, JSON.stringify(next)); }
@@ -2189,7 +2216,7 @@ function startGame(){
 
 const mode1Btn = document.getElementById('mode1Btn');
 const mode2Btn = document.getElementById('mode2Btn');
-mode2Btn.hidden = !loadPolicy();  // only worth offering once there's a run to replay
+mode2Btn.hidden = !(mode2Unlocked() && loadPolicy());  // needs a Mode 1 win on file, and a run to replay
 
 mode1Btn.addEventListener('click', () => { opponentMode = 'ai';     startGame(); });
 mode2Btn.addEventListener('click', () => { opponentMode = 'policy'; startGame(); });
