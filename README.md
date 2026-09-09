@@ -38,7 +38,9 @@
   - **Down** — drop through the floor and ride along at battery height.
 
   ## Running it locally
-  The game is a single file. Clone the repo and open `index.html` in a browser. No build step and no server.
+  The game is a single file, that needs to be downloaded manually. 
+  
+  To download the game, navigate to the green "Code" button above --> Click "Download ZIP" --> click on the downloaded Zip file to see its contents --> open the file `index.html` within, in a browser.
 
   ## Storage
   Top scores and the recorded winning run are kept in the browser's local storage, on that device only. Nothing is sent anywhere. While a winning run is stored, every round
