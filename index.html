@@ -1442,15 +1442,17 @@ function loadPolicy(){
 
 // Called the moment a round ends. It is kept only if the round ran its full
 // length AND the player finished ahead — a losing run teaches the rival
-// nothing. Beating the plain AI in Mode 1 unlocks Mode 2 for good, but the
-// recording itself is only ever replaced by a genuine new high score — a win
-// with a lower score than what's already on file (e.g. the AI's own replay
-// having an off round) leaves the stored best run untouched, so Mode 2 always
-// plays back the single best run ever set, not just whichever one won last.
+// nothing. Only a Mode 1 win can touch the recording at all: beating the
+// plain AI unlocks Mode 2 for good, and replaces the stored run, but only if
+// this score actually beats what's already on file. A Mode 2 win (beating
+// your own replay) never overwrites it — see the hack-patch-timing
+// explanation elsewhere in this file for why that replay's score can drift
+// off its original run's score without your play having actually improved.
 function savePolicy(){
   if (clock < ROUND_TIME || player.points <= ai.points) return;
+  if (opponentMode !== 'ai') return;
 
-  if (opponentMode === 'ai') unlockMode2();
+  unlockMode2();
 
   const current = loadPolicy();
   if (current && player.points <= current.score) return;
